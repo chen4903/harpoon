@@ -3,8 +3,6 @@ use std::pin::Pin;
 
 use crate::interface::{collector::CollectorInterface, executor::ExecutorInterface};
 
-pub type CollectorStream<'a, E> = Pin<Box<dyn Stream<Item = E> + Send + 'a>>;
-
 pub struct CollectorMap<E, F> {
     inner: Box<dyn CollectorInterface<E>>,
     f: F,
