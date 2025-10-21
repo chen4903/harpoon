@@ -1,0 +1,11 @@
+[package]
+name = "harpoon"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+[dev-dependencies.cargo-husky]
+version = "1"
+default-features = false # Disable features which are enabled by default
+features = ["precommit-hook", "run-cargo-fmt"]
