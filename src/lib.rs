@@ -5,4 +5,3 @@ pub mod executor;
 pub mod interface;
 pub mod macros;
 pub mod misc;
-pub mod types;

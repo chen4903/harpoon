@@ -5,13 +5,6 @@ use crate::interface::{collector::Collector, executor::Executor};
 
 pub type CollectorStream<'a, E> = Pin<Box<dyn Stream<Item = E> + Send + 'a>>;
 
-pub trait ActionSubmitter<A>: Send + Sync
-where
-    A: Send + Sync + Clone + 'static,
-{
-    fn submit(&self, action: A);
-}
-
 pub struct CollectorMap<E, F> {
     inner: Box<dyn Collector<E>>,
     f: F,
