@@ -1,10 +1,13 @@
 #[macro_export]
 macro_rules! map_boxed_executor {
     ($executor: expr, $variant: path) => {
-        Box::new($crate::ExecutorMap::new($executor, |action| match action {
-            $variant(value) => Some(value),
-            _ => None,
-        }))
+        Box::new($crate::misc::types::ExecutorMap::new(
+            $executor,
+            |action| match action {
+                $variant(value) => Some(value),
+                _ => None,
+            },
+        ))
     };
 }
 
@@ -18,7 +21,7 @@ macro_rules! map_executor {
 #[macro_export]
 macro_rules! map_boxed_collector {
     ($collector: expr, $variant: path) => {
-        Box::new($crate::CollectorMap::new($collector, $variant))
+        Box::new($crate::misc::types::CollectorMap::new($collector, $variant))
     };
 }
 
