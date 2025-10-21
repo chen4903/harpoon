@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 
-use crate::interface::{CollectorInterface, collector::CollectorStream};
+use crate::{CollectorInterface, CollectorStream};
 
 pub struct IntervalCollector {
     interval: Duration,

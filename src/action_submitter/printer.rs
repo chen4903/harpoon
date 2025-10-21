@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::interface::ActionSubmitterInterface;
+use crate::ActionSubmitterInterface;
 
 #[derive(Debug, Clone)]
 pub struct ActionPrinter<A> {

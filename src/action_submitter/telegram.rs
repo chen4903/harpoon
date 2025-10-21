@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
+use crate::ActionSubmitterInterface;
 use crate::executor::telegram_message::{Message, TelegramMessageDispatcher};
-use crate::interface::ActionSubmitterInterface;
 
 pub struct TelegramSubmitter {
     executor: Arc<TelegramMessageDispatcher>,

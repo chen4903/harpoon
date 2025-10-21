@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use tracing::{error, warn};
 
-use crate::interface::{CollectorInterface, collector::CollectorStream};
+use crate::{CollectorInterface, CollectorStream};
 
 pub struct FullBlockCollector {
     provider: Arc<dyn Provider>,

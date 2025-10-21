@@ -11,7 +11,7 @@ use alloy::{
 use async_trait::async_trait;
 use futures::StreamExt;
 
-use crate::interface::{CollectorInterface, collector::CollectorStream};
+use crate::{CollectorInterface, CollectorStream};
 
 pub struct LogsInBlockCollector {
     provider: Arc<dyn Provider>,

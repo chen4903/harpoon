@@ -7,10 +7,7 @@ use tokio::{
 };
 use tracing::{debug, error, warn};
 
-use crate::{
-    action_submitter::ActionChannelSubmitter,
-    interface::{CollectorInterface, ExecutorInterface, StrategyInterface},
-};
+use crate::{CollectorInterface, ExecutorInterface, StrategyInterface, action_submitter::ActionChannelSubmitter};
 
 pub struct Engine<E, A> {
     collectors: Vec<Box<dyn CollectorInterface<E>>>,

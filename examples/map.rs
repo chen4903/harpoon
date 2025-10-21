@@ -7,10 +7,10 @@ use alloy::providers::ProviderBuilder;
 use alloy::providers::{Provider, WsConnect};
 use alloy::rpc::types::Header;
 use alloy::rpc::types::eth::Transaction;
-use harpoon::collector::block_collector::BlockCollector;
-use harpoon::collector::mempool_collector::MempoolCollector;
-use harpoon::engine::Engine;
-use harpoon::interface::{ActionSubmitterInterface, ExecutorInterface, StrategyInterface};
+use harpoon::Engine;
+use harpoon::collector::BlockCollector;
+use harpoon::collector::MempoolCollector;
+use harpoon::{ActionSubmitterInterface, ExecutorInterface, StrategyInterface};
 use harpoon::{map_collector, map_executor, submit_action};
 
 #[tokio::main]

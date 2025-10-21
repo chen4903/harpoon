@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use reqwest::{Response, StatusCode};
 use serde_json::{Map, json};
 
-use crate::interface::ExecutorInterface;
+use crate::ExecutorInterface;
 
 #[derive(Debug, Clone)]
 pub struct Message {

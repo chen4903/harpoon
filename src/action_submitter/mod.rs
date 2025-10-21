@@ -1,11 +1,16 @@
 pub mod map;
 pub mod printer;
+#[cfg(feature = "telegram")]
 pub mod telegram;
 
+use crate::interface::ActionSubmitterInterface;
 use std::fmt::Debug;
 use tokio::sync::broadcast::Sender;
 
-use crate::interface::ActionSubmitterInterface;
+pub use map::ActionSubmitterMap;
+pub use printer::ActionPrinter;
+#[cfg(feature = "telegram")]
+pub use telegram::TelegramSubmitter;
 
 #[derive(Clone)]
 pub struct ActionChannelSubmitter<A> {

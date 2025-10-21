@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::interface::ActionSubmitterInterface;
+use crate::ActionSubmitterInterface;
 
 pub struct ActionSubmitterMap<A1, A2, F> {
     submitter: Box<dyn ActionSubmitterInterface<A2>>,

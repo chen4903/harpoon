@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use eyre::Result;
 
-use crate::interface::action_submitter::ActionSubmitterInterface;
+use crate::ActionSubmitterInterface;
 
 #[async_trait]
 pub trait StrategyInterface<E, A>: Send + Sync

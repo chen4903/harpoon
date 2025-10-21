@@ -19,7 +19,7 @@ use std::{
 };
 use tracing::error;
 
-use crate::interface::{CollectorInterface, collector::CollectorStream};
+use crate::{CollectorInterface, CollectorStream};
 
 pub struct MempoolCollector {
     provider: Arc<dyn Provider>,

@@ -2,7 +2,7 @@ use alloy::{providers::Provider, rpc::types::Header};
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use crate::interface::{CollectorInterface, collector::CollectorStream};
+use crate::{CollectorInterface, CollectorStream};
 
 pub struct BlockCollector {
     provider: Arc<dyn Provider>,

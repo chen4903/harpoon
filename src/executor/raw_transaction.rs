@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use eyre::Result;
 use std::sync::Arc;
 
-use crate::interface::ExecutorInterface;
+use crate::ExecutorInterface;
 
 pub struct RawTransactionSender {
     provider: Arc<dyn Provider>,

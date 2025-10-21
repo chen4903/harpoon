@@ -3,8 +3,8 @@ use std::sync::Arc;
 use alloy::providers::ProviderBuilder;
 use alloy::providers::WsConnect;
 use futures::StreamExt;
-use harpoon::collector::mempool_collector::MempoolCollector;
-use harpoon::interface::CollectorInterface;
+use harpoon::CollectorInterface;
+use harpoon::collector::MempoolCollector;
 
 #[tokio::main]
 async fn main() {

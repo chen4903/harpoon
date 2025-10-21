@@ -1,4 +1,4 @@
-use crate::interface::ExecutorInterface;
+use crate::ExecutorInterface;
 use async_trait::async_trait;
 
 /// This executor is primarily used for testing purposes to verify if collectors and strategies

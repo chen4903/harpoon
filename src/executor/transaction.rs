@@ -9,7 +9,7 @@ use alloy::{
     signers::local::PrivateKeySigner,
 };
 
-use crate::interface::ExecutorInterface;
+use crate::ExecutorInterface;
 
 pub struct TransactionSender {
     provider: Arc<dyn Provider>,

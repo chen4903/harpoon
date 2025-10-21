@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use eyre::Result;
 use futures::Stream;
 
-pub type CollectorStream<'a, E> = Pin<Box<dyn Stream<Item = E> + Send + 'a>>;
+pub(crate) type CollectorStream<'a, E> = Pin<Box<dyn Stream<Item = E> + Send + 'a>>;
 
 #[async_trait]
 pub trait CollectorInterface<E>: Send + Sync {

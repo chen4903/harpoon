@@ -13,8 +13,7 @@ use alloy::{
 use async_trait::async_trait;
 use tracing::error;
 
-use crate::interface::CollectorInterface;
-use crate::interface::collector::CollectorStream;
+use crate::{CollectorInterface, CollectorStream};
 
 pub struct PollFullBlockCollector {
     provider: Arc<dyn Provider>,
