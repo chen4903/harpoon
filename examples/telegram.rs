@@ -1,15 +1,13 @@
-#[tokio::test]
-#[cfg(feature = "integration_tests")]
-/// cargo test --test telegram_message --features integration_tests
-async fn test_send_message() {
-    use harpoon::{
-        action_submitter::telegram::TelegramSubmitter, executor::telegram_message::MessageBuilder,
-        interface::ActionSubmitterInterface,
-    };
+use harpoon::{
+    action_submitter::telegram::TelegramSubmitter, executor::telegram_message::MessageBuilder,
+    interface::ActionSubmitterInterface,
+};
 
-    use dotenv::dotenv;
-    use std::env;
+use dotenv::dotenv;
+use std::env;
 
+#[tokio::main]
+async fn main() {
     dotenv().ok();
     let bot_token = env::var("TELEGRAM_BOT_TOKEN").expect("TELEGRAM_BOT_TOKEN must be set");
     let chat_id = env::var("TELEGRAM_BOT_CHAT_ID").expect("TELEGRAM_BOT_CHAT_ID must be set");
