@@ -1,4 +1,4 @@
-pub trait ActionSubmitter<A>: Send + Sync
+pub trait ActionSubmitterInterface<A>: Send + Sync
 where
     A: Send + Sync + Clone + 'static,
 {
