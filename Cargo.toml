@@ -2,9 +2,10 @@
 name = "harpoon"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.90"
 
 [dependencies]
-alloy = { version = "1.0.41", features = ["network", "provider-ws"], optional = true }
+alloy = { version = "1.0.41", features = ["provider-ws"], optional = true }
 async-stream = "0.3.6"
 async-trait = "0.1.89"
 dotenv = "0.15.0"
