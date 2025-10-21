@@ -8,7 +8,10 @@ use std::env;
 
 #[tokio::main]
 async fn main() {
+    dotenv::from_filename("examples/.env").ok();
+
     dotenv().ok();
+
     let bot_token = env::var("TELEGRAM_BOT_TOKEN").expect("TELEGRAM_BOT_TOKEN must be set");
     let chat_id = env::var("TELEGRAM_BOT_CHAT_ID").expect("TELEGRAM_BOT_CHAT_ID must be set");
 
