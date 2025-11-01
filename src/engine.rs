@@ -7,12 +7,12 @@ use tokio::{
 };
 use tracing::{debug, error, warn};
 
-use crate::{CollectorInterface, ExecutorInterface, StrategyInterface, action_submitter::ActionChannelSubmitter};
+use crate::{ICollector, IExecutor, IStrategy, action_submitter::ActionChannelSubmitter};
 
 pub struct Engine<E, A> {
-    collectors: Vec<Box<dyn CollectorInterface<E>>>,
-    strategies: Vec<Box<dyn StrategyInterface<E, A>>>,
-    executors: Vec<Box<dyn ExecutorInterface<A>>>,
+    collectors: Vec<Box<dyn ICollector<E>>>,
+    strategies: Vec<Box<dyn IStrategy<E, A>>>,
+    executors: Vec<Box<dyn IExecutor<A>>>,
 
     event_channel_capacity: usize,
     action_channel_capacity: usize,
@@ -59,15 +59,15 @@ where
     E: Send + Sync + Clone + 'static,
     A: Send + Sync + Clone + Debug + 'static,
 {
-    pub fn add_collector(&mut self, collector: Box<dyn CollectorInterface<E>>) {
+    pub fn add_collector(&mut self, collector: Box<dyn ICollector<E>>) {
         self.collectors.push(collector);
     }
 
-    pub fn add_strategy(&mut self, strategy: Box<dyn StrategyInterface<E, A>>) {
+    pub fn add_strategy(&mut self, strategy: Box<dyn IStrategy<E, A>>) {
         self.strategies.push(strategy);
     }
 
-    pub fn add_executor(&mut self, executor: Box<dyn ExecutorInterface<A>>) {
+    pub fn add_executor(&mut self, executor: Box<dyn IExecutor<A>>) {
         self.executors.push(executor);
     }
 

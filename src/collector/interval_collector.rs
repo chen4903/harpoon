@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 
-use crate::{CollectorInterface, CollectorStream};
+use crate::{CollectorStream, ICollector};
 
 pub struct IntervalCollector {
     interval: Duration,
@@ -15,7 +15,7 @@ impl IntervalCollector {
 }
 
 #[async_trait]
-impl CollectorInterface<Instant> for IntervalCollector {
+impl ICollector<Instant> for IntervalCollector {
     fn name(&self) -> &str {
         "Interval Collector"
     }

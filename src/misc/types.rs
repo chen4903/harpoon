@@ -2,21 +2,21 @@ use async_trait::async_trait;
 use eyre::Result;
 use futures::StreamExt;
 
-use crate::interface::{CollectorInterface, ExecutorInterface, collector::CollectorStream};
+use crate::interface::{ICollector, IExecutor, collector::CollectorStream};
 
 pub struct CollectorMap<E, F> {
-    inner: Box<dyn CollectorInterface<E>>,
+    inner: Box<dyn ICollector<E>>,
     f: F,
 }
 
 impl<E, F> CollectorMap<E, F> {
-    pub fn new(collector: Box<dyn CollectorInterface<E>>, f: F) -> Self {
+    pub fn new(collector: Box<dyn ICollector<E>>, f: F) -> Self {
         Self { inner: collector, f }
     }
 }
 
 #[async_trait]
-impl<E1, E2, F> CollectorInterface<E2> for CollectorMap<E1, F>
+impl<E1, E2, F> ICollector<E2> for CollectorMap<E1, F>
 where
     E1: Send + Sync + 'static,
     E2: Send + Sync + 'static,
@@ -35,18 +35,18 @@ where
 }
 
 pub struct CollectorFilterMap<E, F> {
-    inner: Box<dyn CollectorInterface<E>>,
+    inner: Box<dyn ICollector<E>>,
     f: F,
 }
 
 impl<E, F> CollectorFilterMap<E, F> {
-    pub fn new(collector: Box<dyn CollectorInterface<E>>, f: F) -> Self {
+    pub fn new(collector: Box<dyn ICollector<E>>, f: F) -> Self {
         Self { inner: collector, f }
     }
 }
 
 #[async_trait]
-impl<E1, E2, F> CollectorInterface<E2> for CollectorFilterMap<E1, F>
+impl<E1, E2, F> ICollector<E2> for CollectorFilterMap<E1, F>
 where
     E1: Send + Sync + 'static,
     E2: Send + Sync + 'static,
@@ -65,18 +65,18 @@ where
 }
 
 pub struct ExecutorMap<A, F> {
-    inner: Box<dyn ExecutorInterface<A>>,
+    inner: Box<dyn IExecutor<A>>,
     f: F,
 }
 
 impl<A, F> ExecutorMap<A, F> {
-    pub fn new(executor: Box<dyn ExecutorInterface<A>>, f: F) -> Self {
+    pub fn new(executor: Box<dyn IExecutor<A>>, f: F) -> Self {
         Self { inner: executor, f }
     }
 }
 
 #[async_trait]
-impl<A1, A2, F> ExecutorInterface<A1> for ExecutorMap<A2, F>
+impl<A1, A2, F> IExecutor<A1> for ExecutorMap<A2, F>
 where
     A1: Send + Sync + 'static,
     A2: Send + Sync + 'static,

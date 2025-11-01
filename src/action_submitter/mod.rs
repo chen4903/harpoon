@@ -3,7 +3,7 @@ pub mod printer;
 #[cfg(feature = "telegram")]
 pub mod telegram;
 
-use crate::interface::ActionSubmitterInterface;
+use crate::interface::IActionSubmitter;
 use std::fmt::Debug;
 use tokio::sync::broadcast::Sender;
 
@@ -23,7 +23,7 @@ impl<A> ActionChannelSubmitter<A> {
     }
 }
 
-impl<A> ActionSubmitterInterface<A> for ActionChannelSubmitter<A>
+impl<A> IActionSubmitter<A> for ActionChannelSubmitter<A>
 where
     A: Send + Sync + Clone + Debug + 'static,
 {

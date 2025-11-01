@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use eyre::Result;
 
 #[async_trait]
-pub trait ExecutorInterface<A>: Send + Sync {
+pub trait IExecutor<A>: Send + Sync {
     fn name(&self) -> &str {
         "Unnamed"
     }

@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use eyre::Result;
 use std::sync::Arc;
 
-use crate::ExecutorInterface;
+use crate::IExecutor;
 
 pub struct RawTransactionSender {
     provider: Arc<dyn Provider>,
@@ -45,7 +45,7 @@ impl RawTransactionSender {
 }
 
 #[async_trait]
-impl ExecutorInterface<Bytes> for RawTransactionSender {
+impl IExecutor<Bytes> for RawTransactionSender {
     fn name(&self) -> &str {
         "Raw Transaction Sender"
     }

@@ -2,7 +2,7 @@ use alloy::{providers::Provider, rpc::types::Header};
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use crate::{CollectorInterface, CollectorStream};
+use crate::{CollectorStream, ICollector};
 
 pub struct BlockCollector {
     provider: Arc<dyn Provider>,
@@ -15,7 +15,7 @@ impl BlockCollector {
 }
 
 #[async_trait]
-impl CollectorInterface<Header> for BlockCollector {
+impl ICollector<Header> for BlockCollector {
     fn name(&self) -> &str {
         "Block Collector"
     }

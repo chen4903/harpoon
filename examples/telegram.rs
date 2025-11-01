@@ -1,6 +1,6 @@
 use harpoon::{
     action_submitter::telegram::TelegramSubmitter, executor::telegram_message::MessageBuilder,
-    interface::ActionSubmitterInterface,
+    interface::IActionSubmitter,
 };
 
 use dotenv::dotenv;

@@ -9,7 +9,7 @@ use alloy::{
     signers::local::PrivateKeySigner,
 };
 
-use crate::ExecutorInterface;
+use crate::IExecutor;
 
 pub struct TransactionSender {
     provider: Arc<dyn Provider>,
@@ -90,7 +90,7 @@ impl TransactionSender {
 }
 
 #[async_trait::async_trait]
-impl ExecutorInterface<TransactionRequest> for TransactionSender {
+impl IExecutor<TransactionRequest> for TransactionSender {
     fn name(&self) -> &str {
         "Transaction Sender"
     }

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::ActionSubmitterInterface;
+use crate::IActionSubmitter;
 use crate::executor::telegram_message::{Message, TelegramMessageDispatcher};
 
 pub struct TelegramSubmitter {
@@ -30,7 +30,7 @@ impl Default for TelegramSubmitter {
     }
 }
 
-impl ActionSubmitterInterface<Message> for TelegramSubmitter {
+impl IActionSubmitter<Message> for TelegramSubmitter {
     fn submit(&self, action: Message) {
         let action = if let Some((bot_token, chat_id, thread_id)) = &self.redirect_to {
             Message {

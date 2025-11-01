@@ -7,7 +7,7 @@ use alloy::{
 use async_trait::async_trait;
 use futures::StreamExt;
 
-use crate::{CollectorInterface, CollectorStream};
+use crate::{CollectorStream, ICollector};
 
 pub struct LogCollector {
     provider: Arc<dyn Provider>,
@@ -21,7 +21,7 @@ impl LogCollector {
 }
 
 #[async_trait]
-impl CollectorInterface<Log> for LogCollector {
+impl ICollector<Log> for LogCollector {
     fn name(&self) -> &str {
         "Log Collector"
     }

@@ -10,7 +10,7 @@ use alloy::rpc::types::eth::Transaction;
 use harpoon::Engine;
 use harpoon::collector::BlockCollector;
 use harpoon::collector::MempoolCollector;
-use harpoon::{ActionSubmitterInterface, ExecutorInterface, StrategyInterface};
+use harpoon::{IActionSubmitter, IExecutor, IStrategy};
 use harpoon::{map_collector, map_executor, submit_action};
 
 #[tokio::main]
@@ -42,8 +42,8 @@ async fn main() {
 pub struct EchoStrategy;
 
 #[async_trait::async_trait]
-impl StrategyInterface<Event, Action> for EchoStrategy {
-    async fn process_event(&mut self, event: Event, submitter: Arc<dyn ActionSubmitterInterface<Action>>) {
+impl IStrategy<Event, Action> for EchoStrategy {
+    async fn process_event(&mut self, event: Event, submitter: Arc<dyn IActionSubmitter<Action>>) {
         match event {
             Event::Block(block) => {
                 submit_action!(submitter, Action::EchoBlock, block.number);
@@ -59,7 +59,7 @@ impl StrategyInterface<Event, Action> for EchoStrategy {
 pub struct EchoExecutor<T>(PhantomData<T>);
 
 #[async_trait::async_trait]
-impl<T: Debug + Send + Sync> ExecutorInterface<T> for EchoExecutor<T> {
+impl<T: Debug + Send + Sync> IExecutor<T> for EchoExecutor<T> {
     async fn execute(&self, action: T) -> eyre::Result<()> {
         println!("action: {:?}", action);
         Ok(())

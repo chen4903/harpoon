@@ -3,7 +3,7 @@ use std::sync::Arc;
 use alloy::providers::ProviderBuilder;
 use alloy::providers::WsConnect;
 use futures::StreamExt;
-use harpoon::CollectorInterface;
+use harpoon::ICollector;
 use harpoon::collector::MempoolCollector;
 
 #[tokio::main]

@@ -7,7 +7,7 @@ use futures::Stream;
 pub(crate) type CollectorStream<'a, E> = Pin<Box<dyn Stream<Item = E> + Send + 'a>>;
 
 #[async_trait]
-pub trait CollectorInterface<E>: Send + Sync {
+pub trait ICollector<E>: Send + Sync {
     fn name(&self) -> &str {
         "Unnamed"
     }

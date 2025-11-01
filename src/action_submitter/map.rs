@@ -1,15 +1,15 @@
 use std::fmt::Debug;
 
-use crate::ActionSubmitterInterface;
+use crate::IActionSubmitter;
 
 pub struct ActionSubmitterMap<A1, A2, F> {
-    submitter: Box<dyn ActionSubmitterInterface<A2>>,
+    submitter: Box<dyn IActionSubmitter<A2>>,
     f: F,
     _phantom: std::marker::PhantomData<A1>,
 }
 
 impl<A1, A2, F> ActionSubmitterMap<A1, A2, F> {
-    pub fn new(submitter: Box<dyn ActionSubmitterInterface<A2>>, f: F) -> Self {
+    pub fn new(submitter: Box<dyn IActionSubmitter<A2>>, f: F) -> Self {
         Self {
             submitter,
             f,
@@ -18,7 +18,7 @@ impl<A1, A2, F> ActionSubmitterMap<A1, A2, F> {
     }
 }
 
-impl<A1, A2, F> ActionSubmitterInterface<A1> for ActionSubmitterMap<A1, A2, F>
+impl<A1, A2, F> IActionSubmitter<A1> for ActionSubmitterMap<A1, A2, F>
 where
     A1: Send + Sync + Clone + Debug + 'static,
     A2: Send + Sync + Clone + Debug + 'static,

@@ -19,7 +19,7 @@ use std::{
 };
 use tracing::error;
 
-use crate::{CollectorInterface, CollectorStream};
+use crate::{CollectorStream, ICollector};
 
 pub struct MempoolCollector {
     provider: Arc<dyn Provider>,
@@ -32,7 +32,7 @@ impl MempoolCollector {
 }
 
 #[async_trait]
-impl CollectorInterface<Transaction> for MempoolCollector {
+impl ICollector<Transaction> for MempoolCollector {
     fn name(&self) -> &str {
         "Mempool Collector"
     }

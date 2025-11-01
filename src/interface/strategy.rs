@@ -3,10 +3,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use eyre::Result;
 
-use crate::ActionSubmitterInterface;
+use crate::IActionSubmitter;
 
 #[async_trait]
-pub trait StrategyInterface<E, A>: Send + Sync
+pub trait IStrategy<E, A>: Send + Sync
 where
     E: Send + Sync + Clone + 'static,
     A: Send + Sync + Clone + 'static,
@@ -15,9 +15,9 @@ where
         "Unnamed"
     }
 
-    async fn sync_state(&mut self, _submitter: Arc<dyn ActionSubmitterInterface<A>>) -> Result<()> {
+    async fn sync_state(&mut self, _submitter: Arc<dyn IActionSubmitter<A>>) -> Result<()> {
         Ok(())
     }
 
-    async fn process_event(&mut self, event: E, submitter: Arc<dyn ActionSubmitterInterface<A>>);
+    async fn process_event(&mut self, event: E, submitter: Arc<dyn IActionSubmitter<A>>);
 }

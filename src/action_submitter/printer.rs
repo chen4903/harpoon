@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::ActionSubmitterInterface;
+use crate::IActionSubmitter;
 
 #[derive(Debug, Clone)]
 pub struct ActionPrinter<A> {
@@ -15,7 +15,7 @@ impl<A> Default for ActionPrinter<A> {
     }
 }
 
-impl<A> ActionSubmitterInterface<A> for ActionPrinter<A>
+impl<A> IActionSubmitter<A> for ActionPrinter<A>
 where
     A: Send + Clone + Debug + Sync + 'static,
 {

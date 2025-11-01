@@ -3,8 +3,8 @@ pub mod collector;
 pub mod executor;
 pub mod strategy;
 
-pub use action_submitter::ActionSubmitterInterface;
-pub use collector::CollectorInterface;
+pub use action_submitter::IActionSubmitter;
 pub(crate) use collector::CollectorStream;
-pub use executor::ExecutorInterface;
-pub use strategy::StrategyInterface;
+pub use collector::ICollector;
+pub use executor::IExecutor;
+pub use strategy::IStrategy;

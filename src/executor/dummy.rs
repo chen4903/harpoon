@@ -1,4 +1,4 @@
-use crate::ExecutorInterface;
+use crate::IExecutor;
 use async_trait::async_trait;
 
 /// This executor is primarily used for testing purposes to verify if collectors and strategies
@@ -21,7 +21,7 @@ use async_trait::async_trait;
 pub struct Dummy;
 
 #[async_trait]
-impl<A: Send + Sync + 'static> ExecutorInterface<A> for Dummy {
+impl<A: Send + Sync + 'static> IExecutor<A> for Dummy {
     fn name(&self) -> &str {
         "Dummy"
     }

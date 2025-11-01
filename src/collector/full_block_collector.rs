@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use tracing::{error, warn};
 
-use crate::{CollectorInterface, CollectorStream};
+use crate::{CollectorStream, ICollector};
 
 pub struct FullBlockCollector {
     provider: Arc<dyn Provider>,
@@ -29,7 +29,7 @@ impl FullBlockCollector {
 }
 
 #[async_trait]
-impl CollectorInterface<Block> for FullBlockCollector {
+impl ICollector<Block> for FullBlockCollector {
     fn name(&self) -> &str {
         "Full Block Collector"
     }

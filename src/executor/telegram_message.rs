@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use reqwest::{Response, StatusCode};
 use serde_json::{Map, json};
 
-use crate::ExecutorInterface;
+use crate::IExecutor;
 
 #[derive(Debug, Clone)]
 pub struct Message {
@@ -238,7 +238,7 @@ impl Default for TelegramMessageDispatcher {
 }
 
 #[async_trait]
-impl ExecutorInterface<Message> for TelegramMessageDispatcher {
+impl IExecutor<Message> for TelegramMessageDispatcher {
     fn name(&self) -> &str {
         "Telegram Message Dispatcher"
     }

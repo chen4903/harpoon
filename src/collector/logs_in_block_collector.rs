@@ -11,7 +11,7 @@ use alloy::{
 use async_trait::async_trait;
 use futures::StreamExt;
 
-use crate::{CollectorInterface, CollectorStream};
+use crate::{CollectorStream, ICollector};
 
 pub struct LogsInBlockCollector {
     provider: Arc<dyn Provider>,
@@ -40,7 +40,7 @@ impl LogsInBlockCollector {
 }
 
 #[async_trait]
-impl CollectorInterface<(Header, Vec<Log>)> for LogsInBlockCollector {
+impl ICollector<(Header, Vec<Log>)> for LogsInBlockCollector {
     fn name(&self) -> &str {
         "Logs In Block Collector"
     }

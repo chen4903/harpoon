@@ -13,7 +13,7 @@ use alloy::{
 use async_trait::async_trait;
 use tracing::error;
 
-use crate::{CollectorInterface, CollectorStream};
+use crate::{CollectorStream, ICollector};
 
 pub struct PollFullBlockCollector {
     provider: Arc<dyn Provider>,
@@ -32,7 +32,7 @@ impl PollFullBlockCollector {
 }
 
 #[async_trait]
-impl CollectorInterface<Block> for PollFullBlockCollector {
+impl ICollector<Block> for PollFullBlockCollector {
     fn name(&self) -> &str {
         "Poll Full Block Collector"
     }
