@@ -1,5 +1,6 @@
 use chrono::Local;
 use indexmap::IndexMap;
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
@@ -56,6 +57,45 @@ impl LogLevel {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct FileLogConfig {
+    enabled_types: HashSet<String>,
+}
+
+impl FileLogConfig {
+    pub fn all() -> Self {
+        let mut types = HashSet::new();
+        types.insert("separator".to_string());
+        types.insert("table".to_string());
+        types.insert("info".to_string());
+        types.insert("success".to_string());
+        types.insert("warn".to_string());
+        types.insert("process".to_string());
+        types.insert("event".to_string());
+        types.insert("tx".to_string());
+        types.insert("error".to_string());
+        types.insert("debug".to_string());
+        types.insert("item".to_string());
+        types.insert("subitem".to_string());
+        Self { enabled_types: types }
+    }
+
+    pub fn none() -> Self {
+        Self {
+            enabled_types: HashSet::new(),
+        }
+    }
+
+    pub fn only(types: &[&str]) -> Self {
+        let enabled_types = types.iter().map(|s| s.to_string()).collect();
+        Self { enabled_types }
+    }
+
+    fn should_write(&self, log_type: &str) -> bool {
+        self.enabled_types.contains(log_type)
+    }
+}
+
 struct Colors;
 
 #[allow(dead_code)]
@@ -76,14 +116,16 @@ impl Colors {
 pub struct Logger {
     level: Arc<Mutex<LogLevel>>,
     files: Arc<Mutex<IndexMap<String, File>>>,
+    file_config: Arc<FileLogConfig>,
 }
 
 impl Logger {
-    fn new(level: LogLevel) -> Self {
+    fn new(level: LogLevel, file_config: FileLogConfig) -> Self {
         Self::ensure_log_dirs();
         Self {
             level: Arc::new(Mutex::new(level)),
             files: Arc::new(Mutex::new(IndexMap::new())),
+            file_config: Arc::new(file_config),
         }
     }
 
@@ -101,7 +143,10 @@ impl Logger {
         format!("{} {}", self.get_timestamp(), message)
     }
 
-    fn write_to_file(&self, file_path: &str, message: &str) {
+    fn write_to_file(&self, file_path: &str, message: &str, log_type: &str) {
+        if !self.file_config.should_write(log_type) {
+            return;
+        }
         let mut files = self.files.lock().unwrap();
         let file = files
             .entry(file_path.to_string())
@@ -252,8 +297,8 @@ impl Logger {
         let formatted_console_table = format!("\n{}", console_table_lines.join("\n"));
 
         println!("{}{}", self.get_timestamp(), formatted_console_table);
-        self.write_to_file("logs/normal/info.log", &formatted_table);
-        self.write_to_file("logs/refine/table.log", &formatted_table);
+        self.write_to_file("logs/normal/info.log", &formatted_table, "table");
+        self.write_to_file("logs/refine/table.log", &formatted_table, "table");
     }
 
     pub fn info(&self, message: &str) {
@@ -262,8 +307,8 @@ impl Logger {
         }
         let log_message = format!("[Info] {}", message);
         println!("{}", self.format_log(&log_message));
-        self.write_to_file("logs/normal/info.log", &log_message);
-        self.write_to_file("logs/refine/info.log", &log_message);
+        self.write_to_file("logs/normal/info.log", &log_message, "info");
+        self.write_to_file("logs/refine/info.log", &log_message, "info");
     }
 
     pub fn success(&self, message: &str) {
@@ -278,8 +323,8 @@ impl Logger {
             log_message,
             Colors::RESET
         );
-        self.write_to_file("logs/normal/info.log", &log_message);
-        self.write_to_file("logs/refine/success.log", &log_message);
+        self.write_to_file("logs/normal/info.log", &log_message, "success");
+        self.write_to_file("logs/refine/success.log", &log_message, "success");
     }
 
     pub fn warn(&self, message: &str) {
@@ -294,8 +339,8 @@ impl Logger {
             log_message,
             Colors::RESET
         );
-        self.write_to_file("logs/normal/info.log", &log_message);
-        self.write_to_file("logs/refine/warn.log", &log_message);
+        self.write_to_file("logs/normal/info.log", &log_message, "warn");
+        self.write_to_file("logs/refine/warn.log", &log_message, "warn");
     }
 
     pub fn process(&self, message: &str) {
@@ -310,8 +355,8 @@ impl Logger {
             log_message,
             Colors::RESET
         );
-        self.write_to_file("logs/normal/info.log", &log_message);
-        self.write_to_file("logs/refine/process.log", &log_message);
+        self.write_to_file("logs/normal/info.log", &log_message, "process");
+        self.write_to_file("logs/refine/process.log", &log_message, "process");
     }
 
     pub fn event(&self, message: &str) {
@@ -326,8 +371,8 @@ impl Logger {
             log_message,
             Colors::RESET
         );
-        self.write_to_file("logs/normal/info.log", &log_message);
-        self.write_to_file("logs/refine/event.log", &log_message);
+        self.write_to_file("logs/normal/info.log", &log_message, "event");
+        self.write_to_file("logs/refine/event.log", &log_message, "event");
     }
 
     pub fn tx(&self, message: &str) {
@@ -342,8 +387,8 @@ impl Logger {
             log_message,
             Colors::RESET
         );
-        self.write_to_file("logs/normal/info.log", &log_message);
-        self.write_to_file("logs/refine/tx.log", &log_message);
+        self.write_to_file("logs/normal/info.log", &log_message, "tx");
+        self.write_to_file("logs/refine/tx.log", &log_message, "tx");
     }
 
     pub fn error(&self, message: &str) {
@@ -358,8 +403,8 @@ impl Logger {
             log_message,
             Colors::RESET
         );
-        self.write_to_file("logs/normal/error.log", &log_message);
-        self.write_to_file("logs/refine/error.log", &log_message);
+        self.write_to_file("logs/normal/error.log", &log_message, "error");
+        self.write_to_file("logs/refine/error.log", &log_message, "error");
     }
 
     pub fn debug(&self, message: &str) {
@@ -374,8 +419,8 @@ impl Logger {
             log_message,
             Colors::RESET
         );
-        self.write_to_file("logs/normal/debug.log", &log_message);
-        self.write_to_file("logs/refine/debug.log", &log_message);
+        self.write_to_file("logs/normal/debug.log", &log_message, "debug");
+        self.write_to_file("logs/refine/debug.log", &log_message, "debug");
     }
 
     pub fn item(&self, message: &str) {
@@ -390,8 +435,8 @@ impl Logger {
             log_message,
             Colors::RESET
         );
-        self.write_to_file("logs/normal/info.log", &log_message);
-        self.write_to_file("logs/refine/item.log", &log_message);
+        self.write_to_file("logs/normal/info.log", &log_message, "item");
+        self.write_to_file("logs/refine/item.log", &log_message, "item");
     }
 
     pub fn sub_item(&self, message: &str) {
@@ -400,8 +445,8 @@ impl Logger {
         }
         let log_message = format!("   * {}", message);
         println!("{}", self.format_log(&log_message));
-        self.write_to_file("logs/normal/info.log", &log_message);
-        self.write_to_file("logs/refine/subitem.log", &log_message);
+        self.write_to_file("logs/normal/info.log", &log_message, "subitem");
+        self.write_to_file("logs/refine/subitem.log", &log_message, "subitem");
     }
 
     pub fn set_level(&self, level: LogLevel) {
@@ -412,8 +457,8 @@ impl Logger {
 
 static LOGGER: OnceLock<Logger> = OnceLock::new();
 
-pub fn init_logger(level: LogLevel) -> &'static Logger {
-    LOGGER.get_or_init(|| Logger::new(level))
+pub fn init_logger(level: LogLevel, file_config: FileLogConfig) -> &'static Logger {
+    LOGGER.get_or_init(|| Logger::new(level, file_config))
 }
 
 pub fn get_logger() -> &'static Logger {

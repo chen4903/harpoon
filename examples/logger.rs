@@ -1,9 +1,9 @@
-use harpoon::misc::logger::{LogLevel, init_logger};
+use harpoon::misc::logger::{FileLogConfig, LogLevel, init_logger};
 use indexmap::IndexMap;
 
 fn main() {
-    // Initialize logger with Info level
-    let logger = init_logger(LogLevel::Info);
+    // Initialize logger with Info level and only save info and success logs to file
+    let logger = init_logger(LogLevel::Info, FileLogConfig::only(&["info", "success"]));
 
     // Test separator
     logger.separator();
