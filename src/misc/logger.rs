@@ -93,7 +93,8 @@ impl Logger {
     }
 
     fn get_timestamp(&self) -> String {
-        Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
+        let now = Local::now();
+        format!("{} {}", now.format("%Y-%m-%d %H:%M:%S"), now.timestamp())
     }
 
     fn format_log(&self, message: &str) -> String {
