@@ -8,6 +8,7 @@ rust-version = "1.90"
 alloy = { version = "1.0.42", features = ["provider-ws"], optional = true }
 async-stream = "0.3.6"
 async-trait = "0.1.89"
+chrono = "0.4.42"
 dotenv = "0.15.0"
 eyre = "0.6.12"
 futures = "0.3.31"
