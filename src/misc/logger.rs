@@ -1,5 +1,5 @@
 use chrono::Local;
-use std::collections::HashMap;
+use indexmap::IndexMap;
 use std::fmt::Display;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
@@ -75,7 +75,7 @@ impl Colors {
 
 pub struct Logger {
     level: Arc<Mutex<LogLevel>>,
-    files: Arc<Mutex<HashMap<String, File>>>,
+    files: Arc<Mutex<IndexMap<String, File>>>,
 }
 
 impl Logger {
@@ -83,7 +83,7 @@ impl Logger {
         Self::ensure_log_dirs();
         Self {
             level: Arc::new(Mutex::new(level)),
-            files: Arc::new(Mutex::new(HashMap::new())),
+            files: Arc::new(Mutex::new(IndexMap::new())),
         }
     }
 
@@ -122,7 +122,7 @@ impl Logger {
         println!("{} {}", self.get_timestamp(), separator);
     }
 
-    pub fn table(&self, title: &str, data: &HashMap<String, String>) {
+    pub fn table(&self, title: &str, data: &IndexMap<String, String>) {
         if !self.should_log("table") {
             return;
         }

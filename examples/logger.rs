@@ -1,5 +1,5 @@
 use harpoon::misc::logger::{LogLevel, init_logger};
-use std::collections::HashMap;
+use indexmap::IndexMap;
 
 fn main() {
     // Initialize logger with Info level
@@ -32,7 +32,7 @@ fn main() {
 
     // Test table output
     logger.separator();
-    let mut data = HashMap::new();
+    let mut data = IndexMap::new();
     data.insert("Name".to_string(), "Harpoon Logger".to_string());
     data.insert("Version".to_string(), "0.1.0".to_string());
     data.insert("Language".to_string(), "Rust".to_string());
@@ -48,7 +48,7 @@ fn main() {
 
     // Test another table with longer text
     logger.separator();
-    let mut tx_data = HashMap::new();
+    let mut tx_data = IndexMap::new();
     tx_data.insert(
         "TxHash".to_string(),
         "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef".to_string(),
