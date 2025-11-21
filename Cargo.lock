@@ -1853,6 +1853,7 @@ dependencies = [
  "futures",
  "indexmap 2.12.1",
  "reqwest",
+ "serde",
  "serde_json",
  "thiserror",
  "tokio",
