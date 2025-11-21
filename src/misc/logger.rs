@@ -1,5 +1,6 @@
 use chrono::Local;
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -9,6 +10,12 @@ pub enum LogLevel {
     Error,
     Info,
     Debug,
+}
+
+impl Display for LogLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 impl LogLevel {
