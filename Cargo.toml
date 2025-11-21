@@ -5,15 +5,15 @@ edition = "2024"
 rust-version = "1.90"
 
 [dependencies]
-alloy = { version = "1.0.42", features = ["provider-ws"], optional = true }
+alloy = { version = "1.1.2", features = ["provider-ws"], optional = true }
 async-stream = "0.3.6"
 async-trait = "0.1.89"
-chrono = "0.4.42"
-dotenv = "0.15.0"
+chrono = { version = "0.4.42", default-features = false, features = ["clock", "std"] }
 eyre = "0.6.12"
-futures = "0.3.31"
-reqwest = { version = "0.12.24", features = ["json"], optional = true }
-serde_json = { version = "1.0.145", optional = true }
+futures = { version = "0.3.31", default-features = false, features = ["std", "async-await"] }
+indexmap = { version = "2.12.1", default-features = false, features = ["std"] }
+reqwest = { version = "0.12.24", default-features = false, features = ["json"], optional = true }
+serde_json = { version = "1.0.145", default-features = false, features = ["std"], optional = true }
 thiserror = { version = "2.0.17", optional = true }
 tokio = { version = "1.48.0", features = ["rt"] }
 tracing = { version = "0.1.41", features = ["log"] }
@@ -26,6 +26,7 @@ telegram = ["dep:reqwest", "dep:serde_json"]
 [dev-dependencies]
 tokio = { version = "1.48.0", features = ["full"] }
 alloy = { version = "1.0.41", features = ["full"] }
+dotenv = "0.15.0"
 
 [dev-dependencies.cargo-husky]
 version = "1"
