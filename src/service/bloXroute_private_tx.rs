@@ -1,6 +1,6 @@
 use alloy::{
     hex,
-    network::{EthereumWallet, TransactionBuilder, eip2718::Encodable2718},
+    network::{EthereumWallet, Network, TransactionBuilder, eip2718::Encodable2718},
     primitives::Address,
     providers::Provider,
     rpc::types::TransactionRequest,
@@ -9,7 +9,7 @@ use alloy::{
 use eyre::Result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, marker::PhantomData};
 
 /// MEV Builder options for BSC private transactions
 #[derive(Debug, Clone, Serialize)]
@@ -67,10 +67,7 @@ struct JsonRpcError {
 }
 
 /// bloXroute private transaction service
-pub struct BloXrouteService<'a, P>
-where
-    P: Provider,
-{
+pub struct BloXrouteService<P, N> {
     /// bloXroute API endpoint
     api_url: String,
     /// Authorization header value
@@ -80,15 +77,17 @@ where
     /// Signers mapped by their addresses
     signers: HashMap<Address, EthereumWallet>,
     /// Provider for querying on-chain state
-    provider: &'a P,
+    provider: P,
+    _phantom: PhantomData<N>,
 }
 
-impl<'a, P> BloXrouteService<'a, P>
+impl<P, N> BloXrouteService<P, N>
 where
-    P: Provider,
+    P: Provider<N> + Clone + Send + Sync + 'static,
+    N: Network + Send + Sync + 'static,
 {
     /// Create a new bloXroute service
-    pub fn new(auth_header: String, signers: Vec<PrivateKeySigner>, provider: &'a P) -> Self {
+    pub fn new(auth_header: String, signers: Vec<PrivateKeySigner>, provider: P) -> Self {
         let signers: HashMap<_, _> = signers
             .into_iter()
             .map(|s| (s.address(), EthereumWallet::new(s)))
@@ -100,6 +99,7 @@ where
             client: Client::new(),
             signers,
             provider,
+            _phantom: PhantomData,
         }
     }
 
@@ -109,7 +109,7 @@ where
     /// * `api_url` - Custom bloXroute API endpoint
     /// * `auth_header` - Authorization header value
     /// * `signers` - List of private key signers
-    pub fn with_url(api_url: String, auth_header: String, signers: Vec<PrivateKeySigner>, provider: &'a P) -> Self {
+    pub fn with_url(api_url: String, auth_header: String, signers: Vec<PrivateKeySigner>, provider: P) -> Self {
         let signers: HashMap<_, _> = signers
             .into_iter()
             .map(|s| (s.address(), EthereumWallet::new(s)))
@@ -121,6 +121,7 @@ where
             client: Client::new(),
             signers,
             provider,
+            _phantom: PhantomData,
         }
     }
 

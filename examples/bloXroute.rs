@@ -29,7 +29,7 @@ async fn main() -> eyre::Result<()> {
     let provider = ProviderBuilder::new().connect_http(rpc_url.parse()?);
 
     // Create bloXroute service
-    let service = BloXrouteService::new(auth_header, vec![signer.clone()], &provider);
+    let service = BloXrouteService::new(auth_header, vec![signer.clone()], provider.clone());
 
     // Example 1: Send a simple transfer transaction with private tx
     println!("=== Example 1: Send a private transfer transaction ===");
