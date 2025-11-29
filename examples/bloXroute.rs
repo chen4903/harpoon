@@ -29,7 +29,7 @@ async fn main() -> eyre::Result<()> {
     let provider = ProviderBuilder::new().connect_http(rpc_url.parse()?);
 
     // Create bloXroute service
-    let service = BloXrouteService::new(auth_header, vec![signer.clone()]);
+    let service = BloXrouteService::new(auth_header, vec![signer.clone()], &provider);
 
     // Example 1: Send a simple transfer transaction with private tx
     println!("=== Example 1: Send a private transfer transaction ===");
@@ -55,10 +55,7 @@ async fn main() -> eyre::Result<()> {
     println!("  Gas limit: 21000");
 
     // Send the transaction with front-running protection using all MEV builders
-    match service
-        .send_transaction(tx, &provider, Some(vec![MevBuilder::All]))
-        .await
-    {
+    match service.send_transaction(tx, Some(vec![MevBuilder::All])).await {
         Ok(tx_hash) => {
             println!("✅ Transaction sent successfully!");
             println!("Transaction hash: {}", tx_hash);

@@ -1,6 +1,6 @@
 use alloy::{
     hex,
-    network::{EthereumWallet, Network, TransactionBuilder, eip2718::Encodable2718},
+    network::{EthereumWallet, TransactionBuilder, eip2718::Encodable2718},
     primitives::Address,
     providers::Provider,
     rpc::types::TransactionRequest,
@@ -67,7 +67,10 @@ struct JsonRpcError {
 }
 
 /// bloXroute private transaction service
-pub struct BloXrouteService {
+pub struct BloXrouteService<'a, P>
+where
+    P: Provider,
+{
     /// bloXroute API endpoint
     api_url: String,
     /// Authorization header value
@@ -76,11 +79,16 @@ pub struct BloXrouteService {
     client: Client,
     /// Signers mapped by their addresses
     signers: HashMap<Address, EthereumWallet>,
+    /// Provider for querying on-chain state
+    provider: &'a P,
 }
 
-impl BloXrouteService {
+impl<'a, P> BloXrouteService<'a, P>
+where
+    P: Provider,
+{
     /// Create a new bloXroute service
-    pub fn new(auth_header: String, signers: Vec<PrivateKeySigner>) -> Self {
+    pub fn new(auth_header: String, signers: Vec<PrivateKeySigner>, provider: &'a P) -> Self {
         let signers: HashMap<_, _> = signers
             .into_iter()
             .map(|s| (s.address(), EthereumWallet::new(s)))
@@ -91,6 +99,7 @@ impl BloXrouteService {
             auth_header,
             client: Client::new(),
             signers,
+            provider,
         }
     }
 
@@ -100,7 +109,7 @@ impl BloXrouteService {
     /// * `api_url` - Custom bloXroute API endpoint
     /// * `auth_header` - Authorization header value
     /// * `signers` - List of private key signers
-    pub fn with_url(api_url: String, auth_header: String, signers: Vec<PrivateKeySigner>) -> Self {
+    pub fn with_url(api_url: String, auth_header: String, signers: Vec<PrivateKeySigner>, provider: &'a P) -> Self {
         let signers: HashMap<_, _> = signers
             .into_iter()
             .map(|s| (s.address(), EthereumWallet::new(s)))
@@ -111,14 +120,11 @@ impl BloXrouteService {
             auth_header,
             client: Client::new(),
             signers,
+            provider,
         }
     }
 
-    async fn sign_transaction<P, N>(&self, tx: TransactionRequest, provider: &P) -> Result<String>
-    where
-        P: Provider<N>,
-        N: Network,
-    {
+    async fn sign_transaction(&self, tx: TransactionRequest) -> Result<String> {
         let mut tx = tx;
 
         let account = tx.from.ok_or_else(|| eyre::eyre!("missing sender address"))?;
@@ -130,7 +136,7 @@ impl BloXrouteService {
 
         // Get nonce if not set
         if tx.nonce.is_none() {
-            let nonce = provider.get_transaction_count(account).await?;
+            let nonce = self.provider.get_transaction_count(account).await?;
             tx.set_nonce(nonce);
         }
 
@@ -210,17 +216,12 @@ impl BloXrouteService {
     }
 
     /// Send a signed transaction with front-running protection
-    pub async fn send_transaction<P, N>(
+    pub async fn send_transaction(
         &self,
         tx: TransactionRequest,
-        provider: &P,
         mev_builders: Option<Vec<MevBuilder>>,
-    ) -> Result<String>
-    where
-        P: Provider<N>,
-        N: Network,
-    {
-        let raw_tx = self.sign_transaction(tx, provider).await?;
+    ) -> Result<String> {
+        let raw_tx = self.sign_transaction(tx).await?;
         self.send_private_tx(raw_tx, mev_builders).await
     }
 }
