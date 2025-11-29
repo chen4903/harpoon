@@ -83,8 +83,8 @@ pub struct BloXrouteService<P, N> {
 
 impl<P, N> BloXrouteService<P, N>
 where
-    P: Provider<N> + Clone + Send + Sync + 'static,
-    N: Network + Send + Sync + 'static,
+    P: Provider<N> + Clone,
+    N: Network,
 {
     /// Create a new bloXroute service
     pub fn new(auth_header: String, signers: Vec<PrivateKeySigner>, provider: P) -> Self {
