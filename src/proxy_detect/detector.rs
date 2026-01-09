@@ -1,28 +1,29 @@
 use crate::proxy_detect::{
     eip1167::parse_1167_bytecode,
     read_string::read_string,
-    types::{JsonRpcRequester, ProxyResult, ProxyType, RequestArguments},
+    types::{ProxyResult, ProxyType},
 };
-use serde_json::json;
+use alloy::primitives::{Address, Bytes, FixedBytes, U256};
+use alloy::providers::Provider;
+use alloy::rpc::types::BlockId;
+use alloy::rpc::types::TransactionRequest;
 
-// Storage slots for various proxy patterns
-const EIP_1967_LOGIC_SLOT: &str = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
-const OPEN_ZEPPELIN_IMPLEMENTATION_SLOT: &str = "0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3";
-const EIP_1822_LOGIC_SLOT: &str = "0xc5f16f0fcc639fa48a6947836d9850f504798523bf8c9a3a87d5876cf622bcf7";
-const EIP_1967_BEACON_SLOT: &str = "0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50";
+// Storage slots for various proxy patterns (as hex strings)
+const EIP_1967_LOGIC_SLOT: &str = "360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
+const OPEN_ZEPPELIN_IMPLEMENTATION_SLOT: &str = "7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3";
+const EIP_1822_LOGIC_SLOT: &str = "c5f16f0fcc639fa48a6947836d9850f504798523bf8c9a3a87d5876cf622bcf7";
+const EIP_1967_BEACON_SLOT: &str = "a3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50";
 
 // Function signatures (method IDs) for proxy detection
-const EIP_897_IMPLEMENTATION: &str = "0x5c60da1b00000000000000000000000000000000000000000000000000000000";
-const EIP_897_PROXY_TYPE: &str = "0x4555d5c900000000000000000000000000000000000000000000000000000000";
-const EIP_1967_BEACON_IMPLEMENTATION: &str = "0x5c60da1b00000000000000000000000000000000000000000000000000000000";
-const EIP_1967_BEACON_CHILD_IMPLEMENTATION: &str = "0xda52571600000000000000000000000000000000000000000000000000000000";
-const SAFE_MASTER_COPY: &str = "0xa619486e00000000000000000000000000000000000000000000000000000000";
-const COMPTROLLER_IMPLEMENTATION: &str = "0xbb82aa5e00000000000000000000000000000000000000000000000000000000";
-const BATCH_RELAYER_VERSION: &str = "0x54fd4d5000000000000000000000000000000000000000000000000000000000";
-const BATCH_RELAYER_GET_LIBRARY: &str = "0x7678922e00000000000000000000000000000000000000000000000000000000";
-const EIP_2535_FACET_ADDRESSES: &str = "0x52ef6b2c00000000000000000000000000000000000000000000000000000000";
-
-const ZERO_ADDRESS: &str = "0x0000000000000000000000000000000000000000";
+const EIP_897_IMPLEMENTATION: &str = "5c60da1b";
+const EIP_897_PROXY_TYPE: &str = "4555d5c9";
+const EIP_1967_BEACON_IMPLEMENTATION: &str = "5c60da1b";
+const EIP_1967_BEACON_CHILD_IMPLEMENTATION: &str = "da525716";
+const SAFE_MASTER_COPY: &str = "a619486e";
+const COMPTROLLER_IMPLEMENTATION: &str = "bb82aa5e";
+const BATCH_RELAYER_VERSION: &str = "54fd4d50";
+const BATCH_RELAYER_GET_LIBRARY: &str = "7678922e";
+const EIP_2535_FACET_ADDRESSES: &str = "52ef6b2c";
 
 #[derive(Debug)]
 pub struct DetectorError(String);
@@ -35,78 +36,101 @@ impl std::fmt::Display for DetectorError {
 
 impl std::error::Error for DetectorError {}
 
-/// Main proxy detection function
-pub async fn detect_proxy<F>(proxy_address: &str, json_rpc_request: F, block_tag: Option<&str>) -> Option<ProxyResult>
-where
-    F: JsonRpcRequester,
-{
-    let block_tag = block_tag.unwrap_or("latest");
+/// Main proxy detection function using alloy Provider
+pub async fn detect_proxy(
+    provider: &dyn Provider,
+    proxy_address: Address,
+    block_id: Option<BlockId>,
+) -> Option<ProxyResult> {
+    let block_id = block_id.unwrap_or(BlockId::latest());
 
     // Try each detection method sequentially, return first successful one
-    if let Ok(Some(result)) = detect_eip1167(proxy_address, json_rpc_request.clone(), block_tag).await {
+    if let Ok(Some(result)) = detect_eip1167(provider, proxy_address, block_id).await {
         return Some(result);
     }
 
-    if let Ok(Some(result)) = detect_eip1967_direct(proxy_address, json_rpc_request.clone(), block_tag).await {
+    if let Ok(Some(result)) = detect_eip1967_direct(provider, proxy_address, block_id).await {
         return Some(result);
     }
 
-    if let Ok(Some(result)) = detect_eip1967_beacon(proxy_address, json_rpc_request.clone(), block_tag).await {
+    if let Ok(Some(result)) = detect_eip1967_beacon(provider, proxy_address, block_id).await {
         return Some(result);
     }
 
-    if let Ok(Some(result)) = detect_open_zeppelin(proxy_address, json_rpc_request.clone(), block_tag).await {
+    if let Ok(Some(result)) = detect_open_zeppelin(provider, proxy_address, block_id).await {
         return Some(result);
     }
 
-    if let Ok(Some(result)) = detect_eip1822(proxy_address, json_rpc_request.clone(), block_tag).await {
+    if let Ok(Some(result)) = detect_eip1822(provider, proxy_address, block_id).await {
         return Some(result);
     }
 
-    if let Ok(Some(result)) = detect_eip897(proxy_address, json_rpc_request.clone(), block_tag).await {
+    if let Ok(Some(result)) = detect_eip897(provider, proxy_address, block_id).await {
         return Some(result);
     }
 
-    if let Ok(Some(result)) = detect_safe(proxy_address, json_rpc_request.clone(), block_tag).await {
+    if let Ok(Some(result)) = detect_safe(provider, proxy_address, block_id).await {
         return Some(result);
     }
 
-    if let Ok(Some(result)) = detect_comptroller(proxy_address, json_rpc_request.clone(), block_tag).await {
+    if let Ok(Some(result)) = detect_comptroller(provider, proxy_address, block_id).await {
         return Some(result);
     }
 
-    if let Ok(Some(result)) = detect_batch_relayer(proxy_address, json_rpc_request.clone(), block_tag).await {
+    if let Ok(Some(result)) = detect_batch_relayer(provider, proxy_address, block_id).await {
         return Some(result);
     }
 
-    if let Ok(Some(result)) = detect_eip2535_diamond(proxy_address, json_rpc_request.clone(), block_tag).await {
+    if let Ok(Some(result)) = detect_eip2535_diamond(provider, proxy_address, block_id).await {
         return Some(result);
     }
 
     None
 }
 
+// Helper to create calldata from selector
+fn make_calldata(selector: &str) -> Bytes {
+    let bytes = hex::decode(selector).unwrap();
+    Bytes::from(bytes)
+}
+
+// Helper to parse B256 from hex string
+fn parse_slot(slot_hex: &str) -> FixedBytes<32> {
+    let bytes = hex::decode(slot_hex).unwrap();
+    FixedBytes::<32>::from_slice(&bytes)
+}
+
+// Helper to extract address from bytes
+fn address_from_bytes(bytes: &[u8]) -> Address {
+    if bytes.len() >= 20 {
+        Address::from_slice(&bytes[bytes.len() - 20..])
+    } else {
+        Address::ZERO
+    }
+}
+
 // EIP-1167 Minimal Proxy Contract
-async fn detect_eip1167<F>(
-    proxy_address: &str,
-    json_rpc_request: F,
-    block_tag: &str,
-) -> Result<Option<ProxyResult>, DetectorError>
-where
-    F: JsonRpcRequester,
-{
-    let bytecode = json_rpc_request
-        .call(RequestArguments {
-            method: "eth_getCode".to_string(),
-            params: vec![json!(proxy_address), json!(block_tag)],
-        })
+async fn detect_eip1167(
+    provider: &dyn Provider,
+    proxy_address: Address,
+    block_id: BlockId,
+) -> Result<Option<ProxyResult>, DetectorError> {
+    let bytecode = provider
+        .get_code_at(proxy_address)
+        .block_id(block_id)
         .await
         .map_err(|e| DetectorError(e.to_string()))?;
 
-    let bytecode_str = bytecode.as_str().ok_or(DetectorError("Invalid bytecode".to_string()))?;
-    let target = parse_1167_bytecode(bytecode_str).map_err(|_| DetectorError("Not EIP-1167".to_string()))?;
+    let bytecode_hex = format!("0x{}", hex::encode(&bytecode));
+    let target_hex = parse_1167_bytecode(&bytecode_hex).map_err(|_| DetectorError("Not EIP-1167".to_string()))?;
 
-    let target = read_address(&target)?;
+    let target = target_hex
+        .parse::<Address>()
+        .map_err(|_| DetectorError("Invalid address".to_string()))?;
+
+    if target.is_zero() {
+        return Err(DetectorError("Empty address".to_string()));
+    }
 
     Ok(Some(ProxyResult::Single {
         target,
@@ -116,24 +140,23 @@ where
 }
 
 // EIP-1967 Direct Proxy
-async fn detect_eip1967_direct<F>(
-    proxy_address: &str,
-    json_rpc_request: F,
-    block_tag: &str,
-) -> Result<Option<ProxyResult>, DetectorError>
-where
-    F: JsonRpcRequester,
-{
-    let storage = json_rpc_request
-        .call(RequestArguments {
-            method: "eth_getStorageAt".to_string(),
-            params: vec![json!(proxy_address), json!(EIP_1967_LOGIC_SLOT), json!(block_tag)],
-        })
+async fn detect_eip1967_direct(
+    provider: &dyn Provider,
+    proxy_address: Address,
+    block_id: BlockId,
+) -> Result<Option<ProxyResult>, DetectorError> {
+    let slot = parse_slot(EIP_1967_LOGIC_SLOT);
+    let storage = provider
+        .get_storage_at(proxy_address, slot.into())
+        .block_id(block_id)
         .await
         .map_err(|e| DetectorError(e.to_string()))?;
 
-    let storage_str = storage.as_str().ok_or(DetectorError("Invalid storage".to_string()))?;
-    let target = read_address(storage_str)?;
+    let target = Address::from_word(storage.into());
+
+    if target.is_zero() {
+        return Err(DetectorError("Empty address".to_string()));
+    }
 
     Ok(Some(ProxyResult::Single {
         target,
@@ -143,57 +166,49 @@ where
 }
 
 // EIP-1967 Beacon Proxy
-async fn detect_eip1967_beacon<F>(
-    proxy_address: &str,
-    json_rpc_request: F,
-    block_tag: &str,
-) -> Result<Option<ProxyResult>, DetectorError>
-where
-    F: JsonRpcRequester,
-{
-    let storage = json_rpc_request
-        .clone()
-        .call(RequestArguments {
-            method: "eth_getStorageAt".to_string(),
-            params: vec![json!(proxy_address), json!(EIP_1967_BEACON_SLOT), json!(block_tag)],
-        })
+async fn detect_eip1967_beacon(
+    provider: &dyn Provider,
+    proxy_address: Address,
+    block_id: BlockId,
+) -> Result<Option<ProxyResult>, DetectorError> {
+    let slot = parse_slot(EIP_1967_BEACON_SLOT);
+    let storage = provider
+        .get_storage_at(proxy_address, slot.into())
+        .block_id(block_id)
         .await
         .map_err(|e| DetectorError(e.to_string()))?;
 
-    let storage_str = storage.as_str().ok_or(DetectorError("Invalid storage".to_string()))?;
-    let beacon_address = read_address(storage_str)?;
+    let beacon_address = Address::from_word(storage.into());
 
-    // Try implementation() first, then childImplementation()
-    let impl_result = json_rpc_request
-        .clone()
-        .call(RequestArguments {
-            method: "eth_call".to_string(),
-            params: vec![
-                json!({"to": beacon_address, "data": EIP_1967_BEACON_IMPLEMENTATION}),
-                json!(block_tag),
-            ],
-        })
-        .await;
+    if beacon_address.is_zero() {
+        return Err(DetectorError("Empty beacon address".to_string()));
+    }
 
-    let impl_data = if impl_result.is_ok() {
-        impl_result.unwrap()
+    // Try implementation() first
+    let call_data = make_calldata(EIP_1967_BEACON_IMPLEMENTATION);
+    let tx_req = alloy::rpc::types::TransactionRequest::default()
+        .to(beacon_address)
+        .input(call_data.into());
+
+    let impl_result = provider.call(tx_req).await;
+
+    let impl_bytes = if let Ok(bytes) = impl_result {
+        bytes
     } else {
-        json_rpc_request
-            .call(RequestArguments {
-                method: "eth_call".to_string(),
-                params: vec![
-                    json!({"to": beacon_address, "data": EIP_1967_BEACON_CHILD_IMPLEMENTATION}),
-                    json!(block_tag),
-                ],
-            })
-            .await
-            .map_err(|e| DetectorError(e.to_string()))?
+        // Try childImplementation()
+        let call_data = make_calldata(EIP_1967_BEACON_CHILD_IMPLEMENTATION);
+        let tx_req = alloy::rpc::types::TransactionRequest::default()
+            .to(beacon_address)
+            .input(call_data.into());
+
+        provider.call(tx_req).await.map_err(|e| DetectorError(e.to_string()))?
     };
 
-    let impl_str = impl_data
-        .as_str()
-        .ok_or(DetectorError("Invalid implementation".to_string()))?;
-    let target = read_address(impl_str)?;
+    let target = address_from_bytes(&impl_bytes);
+
+    if target.is_zero() {
+        return Err(DetectorError("Empty implementation address".to_string()));
+    }
 
     Ok(Some(ProxyResult::Single {
         target,
@@ -203,28 +218,23 @@ where
 }
 
 // OpenZeppelin Proxy Pattern
-async fn detect_open_zeppelin<F>(
-    proxy_address: &str,
-    json_rpc_request: F,
-    block_tag: &str,
-) -> Result<Option<ProxyResult>, DetectorError>
-where
-    F: JsonRpcRequester,
-{
-    let storage = json_rpc_request
-        .call(RequestArguments {
-            method: "eth_getStorageAt".to_string(),
-            params: vec![
-                json!(proxy_address),
-                json!(OPEN_ZEPPELIN_IMPLEMENTATION_SLOT),
-                json!(block_tag),
-            ],
-        })
+async fn detect_open_zeppelin(
+    provider: &dyn Provider,
+    proxy_address: Address,
+    block_id: BlockId,
+) -> Result<Option<ProxyResult>, DetectorError> {
+    let slot = parse_slot(OPEN_ZEPPELIN_IMPLEMENTATION_SLOT);
+    let storage = provider
+        .get_storage_at(proxy_address, slot.into())
+        .block_id(block_id)
         .await
         .map_err(|e| DetectorError(e.to_string()))?;
 
-    let storage_str = storage.as_str().ok_or(DetectorError("Invalid storage".to_string()))?;
-    let target = read_address(storage_str)?;
+    let target = Address::from_word(storage.into());
+
+    if target.is_zero() {
+        return Err(DetectorError("Empty address".to_string()));
+    }
 
     Ok(Some(ProxyResult::Single {
         target,
@@ -234,24 +244,23 @@ where
 }
 
 // EIP-1822 Universal Upgradeable Proxy
-async fn detect_eip1822<F>(
-    proxy_address: &str,
-    json_rpc_request: F,
-    block_tag: &str,
-) -> Result<Option<ProxyResult>, DetectorError>
-where
-    F: JsonRpcRequester,
-{
-    let storage = json_rpc_request
-        .call(RequestArguments {
-            method: "eth_getStorageAt".to_string(),
-            params: vec![json!(proxy_address), json!(EIP_1822_LOGIC_SLOT), json!(block_tag)],
-        })
+async fn detect_eip1822(
+    provider: &dyn Provider,
+    proxy_address: Address,
+    block_id: BlockId,
+) -> Result<Option<ProxyResult>, DetectorError> {
+    let slot = parse_slot(EIP_1822_LOGIC_SLOT);
+    let storage = provider
+        .get_storage_at(proxy_address, slot.into())
+        .block_id(block_id)
         .await
         .map_err(|e| DetectorError(e.to_string()))?;
 
-    let storage_str = storage.as_str().ok_or(DetectorError("Invalid storage".to_string()))?;
-    let target = read_address(storage_str)?;
+    let target = Address::from_word(storage.into());
+
+    if target.is_zero() {
+        return Err(DetectorError("Empty address".to_string()));
+    }
 
     Ok(Some(ProxyResult::Single {
         target,
@@ -261,45 +270,36 @@ where
 }
 
 // EIP-897 DelegateProxy Pattern
-async fn detect_eip897<F>(
-    proxy_address: &str,
-    json_rpc_request: F,
-    block_tag: &str,
-) -> Result<Option<ProxyResult>, DetectorError>
-where
-    F: JsonRpcRequester,
-{
-    let impl_data = json_rpc_request
-        .clone()
-        .call(RequestArguments {
-            method: "eth_call".to_string(),
-            params: vec![
-                json!({"to": proxy_address, "data": EIP_897_IMPLEMENTATION}),
-                json!(block_tag),
-            ],
-        })
+async fn detect_eip897(
+    provider: &dyn Provider,
+    proxy_address: Address,
+    block_id: BlockId,
+) -> Result<Option<ProxyResult>, DetectorError> {
+    let call_data = make_calldata(EIP_897_IMPLEMENTATION);
+    let tx_req = TransactionRequest::default().to(proxy_address).input(call_data.into());
+    let impl_bytes = provider
+        .call(tx_req)
+        .block(block_id)
         .await
         .map_err(|e| DetectorError(e.to_string()))?;
 
-    let impl_str = impl_data
-        .as_str()
-        .ok_or(DetectorError("Invalid implementation".to_string()))?;
-    let target = read_address(impl_str)?;
+    let target = address_from_bytes(&impl_bytes);
+
+    if target.is_zero() {
+        return Err(DetectorError("Empty address".to_string()));
+    }
 
     // Check if proxy is immutable
-    let proxy_type_data = json_rpc_request
-        .call(RequestArguments {
-            method: "eth_call".to_string(),
-            params: vec![
-                json!({"to": proxy_address, "data": EIP_897_PROXY_TYPE}),
-                json!(block_tag),
-            ],
-        })
+    let call_data = make_calldata(EIP_897_PROXY_TYPE);
+    let tx_req = TransactionRequest::default().to(proxy_address).input(call_data.into());
+    let proxy_type_bytes = provider
+        .call(tx_req)
+        .block(block_id)
         .await
         .map_err(|e| DetectorError(e.to_string()))?;
 
-    let proxy_type_str = proxy_type_data.as_str().unwrap_or("");
-    let immutable = proxy_type_str == "0x0000000000000000000000000000000000000000000000000000000000000001";
+    let proxy_type_value = U256::from_be_slice(&proxy_type_bytes);
+    let immutable = proxy_type_value == U256::from(1);
 
     Ok(Some(ProxyResult::Single {
         target,
@@ -309,26 +309,24 @@ where
 }
 
 // Safe Proxy Contract
-async fn detect_safe<F>(
-    proxy_address: &str,
-    json_rpc_request: F,
-    block_tag: &str,
-) -> Result<Option<ProxyResult>, DetectorError>
-where
-    F: JsonRpcRequester,
-{
-    let master_copy_data = json_rpc_request
-        .call(RequestArguments {
-            method: "eth_call".to_string(),
-            params: vec![json!({"to": proxy_address, "data": SAFE_MASTER_COPY}), json!(block_tag)],
-        })
+async fn detect_safe(
+    provider: &dyn Provider,
+    proxy_address: Address,
+    block_id: BlockId,
+) -> Result<Option<ProxyResult>, DetectorError> {
+    let call_data = make_calldata(SAFE_MASTER_COPY);
+    let tx_req = TransactionRequest::default().to(proxy_address).input(call_data.into());
+    let master_copy_bytes = provider
+        .call(tx_req)
+        .block(block_id)
         .await
         .map_err(|e| DetectorError(e.to_string()))?;
 
-    let master_copy_str = master_copy_data
-        .as_str()
-        .ok_or(DetectorError("Invalid master copy".to_string()))?;
-    let target = read_address(master_copy_str)?;
+    let target = address_from_bytes(&master_copy_bytes);
+
+    if target.is_zero() {
+        return Err(DetectorError("Empty address".to_string()));
+    }
 
     Ok(Some(ProxyResult::Single {
         target,
@@ -338,29 +336,24 @@ where
 }
 
 // Comptroller Proxy
-async fn detect_comptroller<F>(
-    proxy_address: &str,
-    json_rpc_request: F,
-    block_tag: &str,
-) -> Result<Option<ProxyResult>, DetectorError>
-where
-    F: JsonRpcRequester,
-{
-    let impl_data = json_rpc_request
-        .call(RequestArguments {
-            method: "eth_call".to_string(),
-            params: vec![
-                json!({"to": proxy_address, "data": COMPTROLLER_IMPLEMENTATION}),
-                json!(block_tag),
-            ],
-        })
+async fn detect_comptroller(
+    provider: &dyn Provider,
+    proxy_address: Address,
+    block_id: BlockId,
+) -> Result<Option<ProxyResult>, DetectorError> {
+    let call_data = make_calldata(COMPTROLLER_IMPLEMENTATION);
+    let tx_req = TransactionRequest::default().to(proxy_address).input(call_data.into());
+    let impl_bytes = provider
+        .call(tx_req)
+        .block(block_id)
         .await
         .map_err(|e| DetectorError(e.to_string()))?;
 
-    let impl_str = impl_data
-        .as_str()
-        .ok_or(DetectorError("Invalid implementation".to_string()))?;
-    let target = read_address(impl_str)?;
+    let target = address_from_bytes(&impl_bytes);
+
+    if target.is_zero() {
+        return Err(DetectorError("Empty address".to_string()));
+    }
 
     Ok(Some(ProxyResult::Single {
         target,
@@ -370,52 +363,41 @@ where
 }
 
 // Balancer BatchRelayer
-async fn detect_batch_relayer<F>(
-    proxy_address: &str,
-    json_rpc_request: F,
-    block_tag: &str,
-) -> Result<Option<ProxyResult>, DetectorError>
-where
-    F: JsonRpcRequester,
-{
-    let version_data = json_rpc_request
-        .clone()
-        .call(RequestArguments {
-            method: "eth_call".to_string(),
-            params: vec![
-                json!({"to": proxy_address, "data": BATCH_RELAYER_VERSION}),
-                json!(block_tag),
-            ],
-        })
+async fn detect_batch_relayer(
+    provider: &dyn Provider,
+    proxy_address: Address,
+    block_id: BlockId,
+) -> Result<Option<ProxyResult>, DetectorError> {
+    let call_data = make_calldata(BATCH_RELAYER_VERSION);
+    let tx_req = TransactionRequest::default().to(proxy_address).input(call_data.into());
+    let version_bytes = provider
+        .call(tx_req)
+        .block(block_id)
         .await
         .map_err(|e| DetectorError(e.to_string()))?;
 
-    let version_str = version_data
-        .as_str()
-        .ok_or(DetectorError("Invalid version".to_string()))?;
+    let version_hex = format!("0x{}", hex::encode(&version_bytes));
     let version_json: serde_json::Value =
-        serde_json::from_str(&read_string(version_str).map_err(|e| DetectorError(e.to_string()))?)
+        serde_json::from_str(&read_string(&version_hex).map_err(|e| DetectorError(e.to_string()))?)
             .map_err(|e| DetectorError(e.to_string()))?;
 
     if version_json["name"].as_str() != Some("BatchRelayer") {
         return Err(DetectorError("Not a BatchRelayer".to_string()));
     }
 
-    let library_data = json_rpc_request
-        .call(RequestArguments {
-            method: "eth_call".to_string(),
-            params: vec![
-                json!({"to": proxy_address, "data": BATCH_RELAYER_GET_LIBRARY}),
-                json!(block_tag),
-            ],
-        })
+    let call_data = make_calldata(BATCH_RELAYER_GET_LIBRARY);
+    let tx_req = TransactionRequest::default().to(proxy_address).input(call_data.into());
+    let library_bytes = provider
+        .call(tx_req)
+        .block(block_id)
         .await
         .map_err(|e| DetectorError(e.to_string()))?;
 
-    let library_str = library_data
-        .as_str()
-        .ok_or(DetectorError("Invalid library".to_string()))?;
-    let target = read_address(library_str)?;
+    let target = address_from_bytes(&library_bytes);
+
+    if target.is_zero() {
+        return Err(DetectorError("Empty address".to_string()));
+    }
 
     Ok(Some(ProxyResult::Single {
         target,
@@ -425,29 +407,21 @@ where
 }
 
 // EIP-2535 Diamond Proxy
-async fn detect_eip2535_diamond<F>(
-    proxy_address: &str,
-    json_rpc_request: F,
-    block_tag: &str,
-) -> Result<Option<ProxyResult>, DetectorError>
-where
-    F: JsonRpcRequester,
-{
-    let facets_data = json_rpc_request
-        .call(RequestArguments {
-            method: "eth_call".to_string(),
-            params: vec![
-                json!({"to": proxy_address, "data": EIP_2535_FACET_ADDRESSES}),
-                json!(block_tag),
-            ],
-        })
+async fn detect_eip2535_diamond(
+    provider: &dyn Provider,
+    proxy_address: Address,
+    block_id: BlockId,
+) -> Result<Option<ProxyResult>, DetectorError> {
+    let call_data = make_calldata(EIP_2535_FACET_ADDRESSES);
+    let tx_req = TransactionRequest::default().to(proxy_address).input(call_data.into());
+    let facets_bytes = provider
+        .call(tx_req)
+        .block(block_id)
         .await
         .map_err(|e| DetectorError(e.to_string()))?;
 
-    let facets_str = facets_data
-        .as_str()
-        .ok_or(DetectorError("Invalid facets".to_string()))?;
-    let target = read_address_array(facets_str)?;
+    let facets_hex = format!("0x{}", hex::encode(&facets_bytes));
+    let target = read_address_array(&facets_hex)?;
 
     Ok(Some(ProxyResult::Diamond {
         target,
@@ -456,26 +430,8 @@ where
     }))
 }
 
-// Helper: read single address from hex string
-fn read_address(value: &str) -> Result<String, DetectorError> {
-    if value.is_empty() || value == "0x" {
-        return Err(DetectorError("Invalid address value".to_string()));
-    }
-
-    let mut address = value.to_string();
-    if address.len() == 66 {
-        address = format!("0x{}", &address[26..]);
-    }
-
-    if address == ZERO_ADDRESS {
-        return Err(DetectorError("Empty address".to_string()));
-    }
-
-    Ok(address)
-}
-
 // Helper: read address array from ABI-encoded data
-fn read_address_array(value: &str) -> Result<Vec<String>, DetectorError> {
+fn read_address_array(value: &str) -> Result<Vec<Address>, DetectorError> {
     if !value.starts_with("0x") {
         return Err(DetectorError("Invalid hex-encoded value".to_string()));
     }
@@ -507,9 +463,10 @@ fn read_address_array(value: &str) -> Result<Vec<String>, DetectorError> {
     for _ in 0..length {
         let word = &hex[cursor..cursor + 64];
         cursor += 64;
-        let address_hex = format!("0x{}", &word[24..]);
-        if address_hex != ZERO_ADDRESS {
-            addresses.push(address_hex);
+        let address_hex = &word[24..];
+        let address = Address::from_slice(&hex::decode(address_hex).unwrap());
+        if !address.is_zero() {
+            addresses.push(address);
         }
     }
 

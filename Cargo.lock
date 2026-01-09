@@ -1851,6 +1851,7 @@ dependencies = [
  "dotenv",
  "eyre",
  "futures",
+ "hex",
  "indexmap 2.12.1",
  "reqwest",
  "serde",

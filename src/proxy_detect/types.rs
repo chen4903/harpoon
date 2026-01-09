@@ -1,5 +1,5 @@
+use alloy::primitives::Address;
 use serde::{Deserialize, Serialize};
-use std::future::Future;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProxyType {
@@ -19,41 +19,15 @@ pub enum ProxyType {
 #[serde(untagged)]
 pub enum ProxyResult {
     Single {
-        target: String,
+        target: Address,
         #[serde(rename = "type")]
         proxy_type: ProxyType,
         immutable: bool,
     },
     Diamond {
-        target: Vec<String>,
+        target: Vec<Address>,
         #[serde(rename = "type")]
         proxy_type: ProxyType,
         immutable: bool,
     },
-}
-
-pub type BlockTag = String;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RequestArguments {
-    pub method: String,
-    pub params: Vec<serde_json::Value>,
-}
-
-/// JSON-RPC request function trait for proxy detection
-pub trait JsonRpcRequester: Clone {
-    type Future: Future<Output = Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>>> + Send;
-    fn call(&self, args: RequestArguments) -> Self::Future;
-}
-
-// Auto-implement for any function matching the signature
-impl<F, Fut> JsonRpcRequester for F
-where
-    F: Fn(RequestArguments) -> Fut + Send + Sync + Clone + 'static,
-    Fut: Future<Output = Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>>> + Send,
-{
-    type Future = Fut;
-    fn call(&self, args: RequestArguments) -> Self::Future {
-        self(args)
-    }
 }
