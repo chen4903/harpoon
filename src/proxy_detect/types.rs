@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProxyType {
+    NotProxy,
     Eip1167,
     Eip1967Direct,
     Eip1967Beacon,
