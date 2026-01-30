@@ -298,7 +298,9 @@ async fn detect_eip897(
         .await
         .map_err(|e| DetectorError(e.to_string()))?;
 
-    let proxy_type_value = U256::from_be_slice(&proxy_type_bytes);
+    // Ensure slice is at most 32 bytes for U256 conversion
+    let slice_len = proxy_type_bytes.len().min(32);
+    let proxy_type_value = U256::from_be_slice(&proxy_type_bytes[proxy_type_bytes.len() - slice_len..]);
     let immutable = proxy_type_value == U256::from(1);
 
     Ok(Some(ProxyResult::Single {
