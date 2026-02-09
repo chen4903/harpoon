@@ -17,7 +17,6 @@ use std::{
     sync::Arc,
     task::{Context, Poll},
 };
-use tracing::error;
 
 use crate::{CollectorStream, ICollector};
 

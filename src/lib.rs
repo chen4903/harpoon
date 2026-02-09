@@ -6,6 +6,7 @@ pub mod interface;
 pub mod macros;
 pub mod misc;
 pub mod proxy_detect;
+pub mod save_from_etherscan;
 pub mod service;
 
 pub use async_trait::async_trait;
