@@ -97,11 +97,36 @@ docs/
         // Create remappings.txt if not exists
         let remappings = self.root_path.join("remappings.txt");
         if !remappings.exists() {
-            let default_remappings = r#"solmate/=lib/solmate/src/
-forge-std/=lib/forge-std/src/
+            let default_remappings = r#"forge-std/=lib/forge-std/src/
+ds-test/=lib/forge-std/lib/ds-test/src/
+
+@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/
+@morpho-utils/=lib/morpho-utils/src/
+@morpho-dao/morpho-utils/=lib/morpho-utils/src/
+@morpho-dao/morpho-data-structures/=lib/morpho-data-structures/contracts/
+permit2/=lib/v4-periphery/lib/permit2/
+solady/=lib/solady/src/
+ERC721A/=lib/ERC721A/
+@rari-capital/=lib
+solmate/=lib/solmate/src/
+
 @openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
 @openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
-@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/
+openzeppelin/=lib/openzeppelin-contracts/contracts/
+openzeppelin-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
+openzeppelin-contracts/=lib/openzeppelin-contracts/
+
+v2-periphery/=lib/v2-periphery/
+v2-core/=lib/v2-core/
+v3-core/=lib/v3-core/
+v3-periphery/=lib/v3-periphery/
+v3-view/=lib/view-quoter-v3/
+v4-core/=lib/v4-core/
+v4-periphery/=lib/v4-periphery/
+@uniswap/v4-core/=lib/v4-core/
+@uniswap/v3-core=lib/v3-core/
+@uniswap/v2-periphery=lib/v2-periphery/
+@uniswap/v2-core=lib/v2-core/
             "#;
             fs::write(&remappings, default_remappings).context("Failed to create remappings.txt")?;
         }
@@ -200,12 +225,15 @@ forge-std/=lib/forge-std/src/
             self.root_path.join("lib").join(lib_path)
         } else if let Some(after_lib) = normalized.strip_prefix("lib/") {
             // e.g., lib/@openzeppelin/contracts/token/ERC20/IERC20.sol
+            // or lib/openzeppelin-contracts/contracts/...
             if after_lib.starts_with('@') {
                 let lib_path = self.convert_npm_path_to_lib(after_lib);
                 self.root_path.join("lib").join(lib_path)
             } else {
-                // lib/something-else -> keep in lib/
-                self.root_path.join("lib").join(after_lib)
+                // Recursively handle nested lib/ paths using convert_npm_path_to_lib
+                // which will strip additional lib/ prefixes
+                let lib_path = self.convert_npm_path_to_lib(after_lib);
+                self.root_path.join("lib").join(lib_path)
             }
         } else if normalized.contains("/@") {
             // e.g., some/path/@openzeppelin/contracts/...
@@ -230,25 +258,67 @@ forge-std/=lib/forge-std/src/
     fn convert_npm_path_to_lib(&self, npm_path: &str) -> PathBuf {
         // Handle different library formats
         // @openzeppelin/contracts/... -> openzeppelin-contracts/contracts/...
+        // @openzeppelin/contracts-upgradeable/... -> openzeppelin-contracts-upgradeable/contracts/...
+        // @openzeppelin/contracts-upgradeable/lib/openzeppelin-contracts/... -> openzeppelin-contracts/...
         // @aave/core-v3/... -> aave-v3-core/...
 
-        if let Some(rest) = npm_path.strip_prefix("@openzeppelin/contracts/") {
-            PathBuf::from("openzeppelin-contracts/contracts").join(rest)
+        if let Some(rest) = npm_path.strip_prefix("@openzeppelin/contracts-upgradeable/") {
+            // Check if this is a nested lib dependency
+            if let Some(nested) = rest.strip_prefix("lib/") {
+                // Recursively process the nested path
+                self.convert_npm_path_to_lib(nested)
+            } else {
+                PathBuf::from("openzeppelin-contracts-upgradeable/contracts").join(rest)
+            }
+        } else if let Some(rest) = npm_path.strip_prefix("@openzeppelin/contracts/") {
+            if let Some(nested) = rest.strip_prefix("lib/") {
+                self.convert_npm_path_to_lib(nested)
+            } else {
+                PathBuf::from("openzeppelin-contracts/contracts").join(rest)
+            }
         } else if let Some(rest) = npm_path.strip_prefix("@openzeppelin/") {
-            PathBuf::from("openzeppelin-contracts").join(rest)
+            if let Some(nested) = rest.strip_prefix("lib/") {
+                self.convert_npm_path_to_lib(nested)
+            } else {
+                PathBuf::from("openzeppelin-contracts").join(rest)
+            }
         } else if let Some(rest) = npm_path.strip_prefix("@aave/core-v3/") {
-            PathBuf::from("aave-v3-core").join(rest)
+            if let Some(nested) = rest.strip_prefix("lib/") {
+                self.convert_npm_path_to_lib(nested)
+            } else {
+                PathBuf::from("aave-v3-core").join(rest)
+            }
         } else if let Some(rest) = npm_path.strip_prefix("@aave/") {
-            PathBuf::from("aave").join(rest)
+            if let Some(nested) = rest.strip_prefix("lib/") {
+                self.convert_npm_path_to_lib(nested)
+            } else {
+                PathBuf::from("aave").join(rest)
+            }
         } else if npm_path.starts_with('@') {
             // Generic handling: @scope/package/path -> scope-package/path
             let without_at = npm_path.trim_start_matches('@');
             if let Some((scope, rest)) = without_at.split_once('/') {
                 if let Some((package, path)) = rest.split_once('/') {
-                    PathBuf::from(format!("{}-{}", scope, package)).join(path)
+                    // Check for nested lib
+                    if let Some(nested) = path.strip_prefix("lib/") {
+                        self.convert_npm_path_to_lib(nested)
+                    } else {
+                        PathBuf::from(format!("{}-{}", scope, package)).join(path)
+                    }
                 } else {
                     PathBuf::from(format!("{}-{}", scope, rest))
                 }
+            } else {
+                PathBuf::from(npm_path)
+            }
+        } else if let Some(nested) = npm_path.strip_prefix("lib/") {
+            // Handle direct lib/ prefix (for non-npm style paths)
+            self.convert_npm_path_to_lib(nested)
+        } else if npm_path.contains("/lib/") {
+            // Handle lib/ in the middle of path (e.g., openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/...)
+            if let Some(idx) = npm_path.find("/lib/") {
+                let after_lib = &npm_path[idx + 5..]; // +5 to skip "/lib/"
+                self.convert_npm_path_to_lib(after_lib)
             } else {
                 PathBuf::from(npm_path)
             }
