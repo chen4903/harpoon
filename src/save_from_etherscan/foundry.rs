@@ -61,11 +61,14 @@ impl FoundryProject {
         // Create foundry.toml if not exists
         let foundry_toml = self.root_path.join("foundry.toml");
         if !foundry_toml.exists() {
-            let default_config = r#"
-                [profile.default]
-                src = "src"
-                out = "out"
-                libs = ["lib"]
+            let default_config = r#"[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+
+rpc_endpoints = { mainnet = "https://rpc.ankr.com/eth", optimism = "https://opt-mainnet.g.alchemy.com/v2/demo", fantom = "https://rpc.ankr.com/fantom", arbitrum = "https://rpc.ankr.com/arbitrum", bsc = "https://rpc.ankr.com/bsc", moonriver = "https://moonriver.public.blastapi.io", gnosis = "https://rpc.ankr.com/gnosis", Avalanche = "https://rpc.ankr.com/avalanche", polygon = "https://rpc.ankr.com/polygon", celo = "https://rpc.ankr.com/celo", Base = "https://developer-access-mainnet.base.org" }
+
+# See more config options https://github.com/foundry-rs/foundry/tree/master/config
             "#;
             fs::write(&foundry_toml, default_config).context("Failed to create foundry.toml")?;
         }
@@ -73,21 +76,20 @@ impl FoundryProject {
         // Create .gitignore if not exists
         let gitignore = self.root_path.join(".gitignore");
         if !gitignore.exists() {
-            let default_gitignore = r#"
-                # Compiler files
-                cache/
-                out/
+            let default_gitignore = r#"# Compiler files
+cache/
+out/
 
-                # Ignores development broadcast logs
-                !/broadcast
-                /broadcast/*/31337/
-                /broadcast/**/dry-run/
+# Ignores development broadcast logs
+!/broadcast
+/broadcast/*/31337/
+/broadcast/**/dry-run/
 
-                # Docs
-                docs/
+# Docs
+docs/
 
-                # Dotenv file
-                .env
+# Dotenv file
+.env
             "#;
             fs::write(&gitignore, default_gitignore).context("Failed to create .gitignore")?;
         }
@@ -95,12 +97,11 @@ impl FoundryProject {
         // Create remappings.txt if not exists
         let remappings = self.root_path.join("remappings.txt");
         if !remappings.exists() {
-            let default_remappings = r#"
-                solmate/=lib/solmate/src/
-                forge-std/=lib/forge-std/src/
-                @openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
-                @openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
-                @chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/
+            let default_remappings = r#"solmate/=lib/solmate/src/
+forge-std/=lib/forge-std/src/
+@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
+@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/
             "#;
             fs::write(&remappings, default_remappings).context("Failed to create remappings.txt")?;
         }

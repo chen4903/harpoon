@@ -11,6 +11,7 @@ pub struct SourceFile {
 /// Contract data including sources and metadata
 #[derive(Debug)]
 pub struct ContractInfo {
+    pub is_verified: bool,
     /// Handles both single-file and multi-file contracts
     pub sources: HashMap<String, SourceFile>,
     pub source_code: String,
@@ -135,7 +136,8 @@ impl EtherscanClient {
     }
 
     /// Fetch contract source code from Etherscan V2 API
-    pub async fn fetch_contract_info(&self, contract_address: &str) -> Result<ContractInfo> {
+    /// Returns (is_verified, contract_info)
+    pub async fn fetch_contract_info(&self, contract_address: &str) -> Result<(bool, ContractInfo)> {
         let chain_id_str = self.config.chain_id.to_string();
 
         // Etherscan V2 API parameters
@@ -166,7 +168,12 @@ impl EtherscanClient {
 
         let sources = self.parse_source_code(&contract_result.source_code, &contract_result.contract_name)?;
 
-        Ok(ContractInfo {
+        // Check if contract is verified
+        let is_verified = !contract_result.source_code.trim().is_empty()
+            && contract_result.abi != "Contract source code not verified";
+
+        let contract_info = ContractInfo {
+            is_verified,
             sources,
             source_code: contract_result.source_code.clone(),
             contract_name: contract_result.contract_name.clone(),
@@ -181,7 +188,9 @@ impl EtherscanClient {
             proxy: contract_result.proxy.clone(),
             implementation: contract_result.implementation.clone(),
             swarm_source: contract_result.swarm_source.clone(),
-        })
+        };
+
+        Ok((is_verified, contract_info))
     }
 
     /// Parse source code from Etherscan response
