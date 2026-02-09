@@ -21,8 +21,8 @@ async fn main() -> Result<()> {
     let contract_data = client.fetch_contract_info(&address.to_string()).await?;
 
     // Save contract (one-stop method: creates project, initializes structure, saves all files)
-    if contract_data.0 {
-        let project_path = FoundryProject::save_as_foundry(&output, &contract_data.1)?;
+    if contract_data.is_verified {
+        let project_path = FoundryProject::save_as_foundry(&output, &contract_data)?;
         println!("📂 Location: {}", project_path.display());
         println!("✨ Done! Contract source code saved successfully.");
     } else {

@@ -136,8 +136,8 @@ impl EtherscanClient {
     }
 
     /// Fetch contract source code from Etherscan V2 API
-    /// Returns (is_verified, contract_info)
-    pub async fn fetch_contract_info(&self, contract_address: &str) -> Result<(bool, ContractInfo)> {
+    /// Returns ContractInfo with is_verified field
+    pub async fn fetch_contract_info(&self, contract_address: &str) -> Result<ContractInfo> {
         let chain_id_str = self.config.chain_id.to_string();
 
         // Etherscan V2 API parameters
@@ -190,7 +190,7 @@ impl EtherscanClient {
             swarm_source: contract_result.swarm_source.clone(),
         };
 
-        Ok((is_verified, contract_info))
+        Ok(contract_info)
     }
 
     /// Parse source code from Etherscan response
