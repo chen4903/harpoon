@@ -6,6 +6,8 @@ use harpoon::{
 use dotenv::dotenv;
 use std::env;
 
+// run `cargo run --example telegram_normal` to send a message to the chat
+
 #[tokio::main]
 async fn main() {
     dotenv::from_filename("examples/.env").ok();
