@@ -1,14 +1,43 @@
+use std::collections::HashMap;
+
 use async_trait::async_trait;
 use reqwest::{Response, StatusCode};
 use serde_json::{Map, json};
 
 use crate::IExecutor;
 
+#[derive(Debug, Clone, Default)]
+pub struct TopicRegistry {
+    topics: HashMap<String, i64>,
+}
+
+impl TopicRegistry {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn register(mut self, name: impl Into<String>, thread_id: i64) -> Self {
+        self.topics.insert(name.into(), thread_id);
+        self
+    }
+
+    pub fn get(&self, name: &str) -> Option<i64> {
+        self.topics.get(name).copied()
+    }
+
+    pub fn names(&self) -> Vec<&str> {
+        let mut names: Vec<_> = self.topics.keys().map(|s| s.as_str()).collect();
+        names.sort();
+        names
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Message {
     pub bot_token: String,
     pub chat_id: String,
-    pub thread_id: Option<String>,
+    pub thread_id: Option<i64>,
+    pub topic: Option<String>,
     pub text: String,
     pub disable_notification: Option<bool>,
     pub protect_content: Option<bool>,
@@ -20,7 +49,8 @@ pub struct Message {
 pub struct MessageBuilder {
     bot_token: Option<String>,
     chat_id: Option<String>,
-    thread_id: Option<String>,
+    thread_id: Option<i64>,
+    topic: Option<String>,
     text: Option<String>,
     disable_notification: Option<bool>,
     protect_content: Option<bool>,
@@ -43,8 +73,13 @@ impl MessageBuilder {
         self
     }
 
-    pub fn thread_id<T: Into<String>>(mut self, thread_id: T) -> Self {
-        self.thread_id = Some(thread_id.into());
+    pub fn thread_id(mut self, thread_id: i64) -> Self {
+        self.thread_id = Some(thread_id);
+        self
+    }
+
+    pub fn topic<T: Into<String>>(mut self, topic: T) -> Self {
+        self.topic = Some(topic.into());
         self
     }
 
@@ -78,6 +113,7 @@ impl MessageBuilder {
             bot_token: self.bot_token.unwrap_or_default(),
             chat_id: self.chat_id.unwrap_or_default(),
             thread_id: self.thread_id,
+            topic: self.topic,
             text: self.text.unwrap_or_default(),
             disable_notification: self.disable_notification,
             protect_content: self.protect_content,
@@ -90,7 +126,8 @@ impl MessageBuilder {
 pub struct TelegramMessageDispatcher {
     error_report_bot_token: Option<String>,
     error_report_chat_id: Option<String>,
-    error_report_thread_id: Option<String>,
+    error_report_thread_id: Option<i64>,
+    topic_registry: Option<TopicRegistry>,
 
     client: reqwest::Client,
 }
@@ -101,6 +138,7 @@ impl TelegramMessageDispatcher {
             error_report_bot_token: None,
             error_report_chat_id: None,
             error_report_thread_id: None,
+            topic_registry: None,
             client: reqwest::ClientBuilder::new().build().unwrap(),
         }
     }
@@ -108,14 +146,29 @@ impl TelegramMessageDispatcher {
     pub fn new_with_error_report(
         error_report_bot_token: Option<String>,
         error_report_chat_id: Option<String>,
-        error_report_thread_id: Option<String>,
+        error_report_thread_id: Option<i64>,
     ) -> Self {
         Self {
             error_report_bot_token,
             error_report_chat_id,
             error_report_thread_id,
+            topic_registry: None,
             client: reqwest::ClientBuilder::new().build().unwrap(),
         }
+    }
+
+    pub fn with_topic_registry(mut self, topic_registry: TopicRegistry) -> Self {
+        self.topic_registry = Some(topic_registry);
+        self
+    }
+
+    fn resolve_thread_id(&self, message: &Message) -> Option<i64> {
+        message.thread_id.or_else(|| {
+            message
+                .topic
+                .as_ref()
+                .and_then(|name| self.topic_registry.as_ref().and_then(|registry| registry.get(name)))
+        })
     }
 
     fn get_url<T: std::fmt::Display>(bot_token: T) -> String {
@@ -129,13 +182,22 @@ impl TelegramMessageDispatcher {
 
         data.insert("chat_id".to_string(), json!(&message.chat_id));
         data.insert("text".to_string(), json!(&message.text));
-        data.insert(
-            "parse_mode".to_string(),
-            json!(&message.parse_mode.clone().unwrap_or("MarkdownV2".to_string())),
-        );
 
-        if let Some(thread_id) = &message.thread_id {
-            data.insert("message_thread_id".to_string(), json!(thread_id));
+        if let Some(parse_mode) = &message.parse_mode {
+            data.insert("parse_mode".to_string(), json!(parse_mode));
+        }
+
+        match self.resolve_thread_id(&message) {
+            Some(thread_id) => {
+                data.insert("message_thread_id".to_string(), json!(thread_id));
+            }
+            None if message.topic.is_some() => {
+                tracing::warn!(
+                    "telegram topic {:?} is not registered, message will go to General",
+                    message.topic
+                );
+            }
+            None => {}
         }
 
         if let Some(disable_notification) = &message.disable_notification {
