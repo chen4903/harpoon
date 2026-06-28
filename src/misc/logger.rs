@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use std::fmt::Display;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,9 +61,52 @@ impl LogLevel {
 #[derive(Debug, Clone)]
 pub struct FileLogConfig {
     enabled_types: HashSet<String>,
+    log_dir: PathBuf,
 }
 
 impl FileLogConfig {
+    fn detect_project_root() -> Option<PathBuf> {
+        let mut package_root = None;
+        let mut workspace_root = None;
+
+        for start in [std::env::current_exe().ok(), std::env::current_dir().ok()]
+            .into_iter()
+            .flatten()
+        {
+            for dir in start.ancestors() {
+                let manifest_path = dir.join("Cargo.toml");
+                if !manifest_path.is_file() {
+                    continue;
+                }
+
+                if package_root.is_none() {
+                    package_root = Some(dir.to_path_buf());
+                }
+
+                if fs::read_to_string(&manifest_path)
+                    .map(|contents| contents.contains("[workspace]"))
+                    .unwrap_or(false)
+                {
+                    workspace_root = Some(dir.to_path_buf());
+                    break;
+                }
+            }
+
+            if workspace_root.is_some() {
+                break;
+            }
+        }
+
+        workspace_root.or(package_root)
+    }
+
+    fn default_log_dir() -> PathBuf {
+        std::env::var_os("HARPOON_LOG_DIR")
+            .map(PathBuf::from)
+            .or_else(|| Self::detect_project_root().map(|root| root.join("logs")))
+            .unwrap_or_else(|| Path::new("logs").to_path_buf())
+    }
+
     pub fn all() -> Self {
         let mut types = HashSet::new();
         types.insert("separator".to_string());
@@ -77,22 +121,38 @@ impl FileLogConfig {
         types.insert("debug".to_string());
         types.insert("item".to_string());
         types.insert("subitem".to_string());
-        Self { enabled_types: types }
+        Self {
+            enabled_types: types,
+            log_dir: Self::default_log_dir(),
+        }
     }
 
     pub fn none() -> Self {
         Self {
             enabled_types: HashSet::new(),
+            log_dir: Self::default_log_dir(),
         }
     }
 
     pub fn only(types: &[&str]) -> Self {
         let enabled_types = types.iter().map(|s| s.to_string()).collect();
-        Self { enabled_types }
+        Self {
+            enabled_types,
+            log_dir: Self::default_log_dir(),
+        }
+    }
+
+    pub fn with_log_dir<P: Into<PathBuf>>(mut self, log_dir: P) -> Self {
+        self.log_dir = log_dir.into();
+        self
     }
 
     fn should_write(&self, log_type: &str) -> bool {
         self.enabled_types.contains(log_type)
+    }
+
+    fn log_dir(&self) -> &Path {
+        &self.log_dir
     }
 }
 
@@ -117,21 +177,24 @@ pub struct Logger {
     level: Arc<Mutex<LogLevel>>,
     files: Arc<Mutex<IndexMap<String, File>>>,
     file_config: Arc<FileLogConfig>,
+    log_dir: PathBuf,
 }
 
 impl Logger {
     fn new(level: LogLevel, file_config: FileLogConfig) -> Self {
-        Self::ensure_log_dirs();
+        let log_dir = file_config.log_dir().to_path_buf();
+        Self::ensure_log_dirs(&log_dir);
         Self {
             level: Arc::new(Mutex::new(level)),
             files: Arc::new(Mutex::new(IndexMap::new())),
             file_config: Arc::new(file_config),
+            log_dir,
         }
     }
 
-    fn ensure_log_dirs() {
-        let _ = fs::create_dir_all("logs/normal");
-        let _ = fs::create_dir_all("logs/refine");
+    fn ensure_log_dirs(log_dir: &Path) {
+        let _ = fs::create_dir_all(log_dir.join("normal"));
+        let _ = fs::create_dir_all(log_dir.join("refine"));
     }
 
     fn get_timestamp(&self) -> String {
@@ -143,14 +206,19 @@ impl Logger {
         format!("{} {}", self.get_timestamp(), message)
     }
 
-    fn write_to_file(&self, file_path: &str, message: &str, log_type: &str) {
+    fn log_path(&self, kind: &str, file_name: &str) -> PathBuf {
+        self.log_dir.join(kind).join(file_name)
+    }
+
+    fn write_to_file(&self, file_path: PathBuf, message: &str, log_type: &str) {
         if !self.file_config.should_write(log_type) {
             return;
         }
         let mut files = self.files.lock().unwrap();
+        let file_key = file_path.to_string_lossy().into_owned();
         let file = files
-            .entry(file_path.to_string())
-            .or_insert_with(|| OpenOptions::new().create(true).append(true).open(file_path).unwrap());
+            .entry(file_key)
+            .or_insert_with(|| OpenOptions::new().create(true).append(true).open(&file_path).unwrap());
         let timestamp = self.get_timestamp();
         let _ = writeln!(file, "[{}] {}", timestamp, message);
     }
@@ -297,8 +365,8 @@ impl Logger {
         let formatted_console_table = format!("\n{}", console_table_lines.join("\n"));
 
         println!("{}{}", self.get_timestamp(), formatted_console_table);
-        self.write_to_file("logs/normal/info.log", &formatted_table, "table");
-        self.write_to_file("logs/refine/table.log", &formatted_table, "table");
+        self.write_to_file(self.log_path("normal", "info.log"), &formatted_table, "table");
+        self.write_to_file(self.log_path("refine", "table.log"), &formatted_table, "table");
     }
 
     pub fn info(&self, message: &str) {
@@ -307,8 +375,8 @@ impl Logger {
         }
         let log_message = format!("[Info] {}", message);
         println!("{}", self.format_log(&log_message));
-        self.write_to_file("logs/normal/info.log", &log_message, "info");
-        self.write_to_file("logs/refine/info.log", &log_message, "info");
+        self.write_to_file(self.log_path("normal", "info.log"), &log_message, "info");
+        self.write_to_file(self.log_path("refine", "info.log"), &log_message, "info");
     }
 
     pub fn success(&self, message: &str) {
@@ -323,8 +391,8 @@ impl Logger {
             log_message,
             Colors::RESET
         );
-        self.write_to_file("logs/normal/info.log", &log_message, "success");
-        self.write_to_file("logs/refine/success.log", &log_message, "success");
+        self.write_to_file(self.log_path("normal", "info.log"), &log_message, "success");
+        self.write_to_file(self.log_path("refine", "success.log"), &log_message, "success");
     }
 
     pub fn warn(&self, message: &str) {
@@ -339,8 +407,8 @@ impl Logger {
             log_message,
             Colors::RESET
         );
-        self.write_to_file("logs/normal/info.log", &log_message, "warn");
-        self.write_to_file("logs/refine/warn.log", &log_message, "warn");
+        self.write_to_file(self.log_path("normal", "info.log"), &log_message, "warn");
+        self.write_to_file(self.log_path("refine", "warn.log"), &log_message, "warn");
     }
 
     pub fn process(&self, message: &str) {
@@ -355,8 +423,8 @@ impl Logger {
             log_message,
             Colors::RESET
         );
-        self.write_to_file("logs/normal/info.log", &log_message, "process");
-        self.write_to_file("logs/refine/process.log", &log_message, "process");
+        self.write_to_file(self.log_path("normal", "info.log"), &log_message, "process");
+        self.write_to_file(self.log_path("refine", "process.log"), &log_message, "process");
     }
 
     pub fn event(&self, message: &str) {
@@ -371,8 +439,8 @@ impl Logger {
             log_message,
             Colors::RESET
         );
-        self.write_to_file("logs/normal/info.log", &log_message, "event");
-        self.write_to_file("logs/refine/event.log", &log_message, "event");
+        self.write_to_file(self.log_path("normal", "info.log"), &log_message, "event");
+        self.write_to_file(self.log_path("refine", "event.log"), &log_message, "event");
     }
 
     pub fn tx(&self, message: &str) {
@@ -387,8 +455,8 @@ impl Logger {
             log_message,
             Colors::RESET
         );
-        self.write_to_file("logs/normal/info.log", &log_message, "tx");
-        self.write_to_file("logs/refine/tx.log", &log_message, "tx");
+        self.write_to_file(self.log_path("normal", "info.log"), &log_message, "tx");
+        self.write_to_file(self.log_path("refine", "tx.log"), &log_message, "tx");
     }
 
     pub fn error(&self, message: &str) {
@@ -403,8 +471,8 @@ impl Logger {
             log_message,
             Colors::RESET
         );
-        self.write_to_file("logs/normal/error.log", &log_message, "error");
-        self.write_to_file("logs/refine/error.log", &log_message, "error");
+        self.write_to_file(self.log_path("normal", "error.log"), &log_message, "error");
+        self.write_to_file(self.log_path("refine", "error.log"), &log_message, "error");
     }
 
     pub fn debug(&self, message: &str) {
@@ -419,8 +487,8 @@ impl Logger {
             log_message,
             Colors::RESET
         );
-        self.write_to_file("logs/normal/debug.log", &log_message, "debug");
-        self.write_to_file("logs/refine/debug.log", &log_message, "debug");
+        self.write_to_file(self.log_path("normal", "debug.log"), &log_message, "debug");
+        self.write_to_file(self.log_path("refine", "debug.log"), &log_message, "debug");
     }
 
     pub fn item(&self, message: &str) {
@@ -435,8 +503,8 @@ impl Logger {
             log_message,
             Colors::RESET
         );
-        self.write_to_file("logs/normal/info.log", &log_message, "item");
-        self.write_to_file("logs/refine/item.log", &log_message, "item");
+        self.write_to_file(self.log_path("normal", "info.log"), &log_message, "item");
+        self.write_to_file(self.log_path("refine", "item.log"), &log_message, "item");
     }
 
     pub fn sub_item(&self, message: &str) {
@@ -445,8 +513,8 @@ impl Logger {
         }
         let log_message = format!("   * {}", message);
         println!("{}", self.format_log(&log_message));
-        self.write_to_file("logs/normal/info.log", &log_message, "subitem");
-        self.write_to_file("logs/refine/subitem.log", &log_message, "subitem");
+        self.write_to_file(self.log_path("normal", "info.log"), &log_message, "subitem");
+        self.write_to_file(self.log_path("refine", "subitem.log"), &log_message, "subitem");
     }
 
     pub fn set_level(&self, level: LogLevel) {
